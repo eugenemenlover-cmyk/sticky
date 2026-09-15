@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Circle World</title>
+<title>Circle World Multiplayer</title>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 
@@ -19,110 +19,106 @@ body {
     width: 100%;
     height: 100%;
     overflow: hidden;
+    background: #090b10;
     font-family: Arial, Helvetica, sans-serif;
-    background: #0b0e14;
-    color: white;
 }
 
 body {
-    user-select: none;
+    color: white;
 }
 
 canvas {
     position: fixed;
     inset: 0;
-    display: block;
     width: 100%;
     height: 100%;
+    display: block;
     background: #11151c;
 }
 
 /* =========================================================
-   SCREEN SYSTEM
+   SCREENS
 ========================================================= */
 
 .screen {
     position: fixed;
     inset: 0;
     z-index: 100;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
-    background:
-        radial-gradient(circle at 50% 40%, rgba(82,108,255,0.12), transparent 35%),
-        rgba(7,9,14,0.96);
-    transition: opacity 0.2s ease, visibility 0.2s ease;
+    pointer-events: none;
 }
 
-.screen.hidden {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
+.screen.active {
+    display: flex;
+    pointer-events: auto;
 }
 
 /* =========================================================
    MAIN MENU
 ========================================================= */
 
-.menu {
-    width: min(440px, calc(100vw - 32px));
+#menuScreen {
+    background:
+        radial-gradient(circle at 50% 40%, rgba(90, 110, 255, 0.15), transparent 40%),
+        rgba(5, 7, 11, 0.88);
+}
+
+.menu-box {
+    width: min(440px, calc(100vw - 40px));
     text-align: center;
 }
 
 .logo {
-    margin-bottom: 12px;
-}
-
-.logo h1 {
-    font-size: clamp(46px, 8vw, 72px);
-    line-height: 0.95;
+    font-size: clamp(48px, 8vw, 82px);
     font-weight: 900;
-    letter-spacing: -4px;
-    background: linear-gradient(135deg, #ffffff, #8196ff);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    letter-spacing: -5px;
+    line-height: 0.95;
+    text-shadow:
+        0 0 30px rgba(100, 120, 255, 0.3),
+        0 8px 40px rgba(0,0,0,0.5);
 }
 
-.logo p {
-    margin-top: 12px;
-    color: #8993a7;
+.logo span {
+    color: #7084ff;
+}
+
+.logo-subtitle {
+    margin-top: 16px;
+    color: #8992a5;
     font-size: 14px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
 }
 
-.menu-card {
-    margin-top: 36px;
-    padding: 24px;
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 22px;
-    background: rgba(18,22,31,0.92);
-    box-shadow:
-        0 25px 80px rgba(0,0,0,0.45),
-        inset 0 1px rgba(255,255,255,0.04);
-    backdrop-filter: blur(20px);
+.menu-buttons {
+    margin-top: 45px;
 }
 
 .menu-button {
     width: 100%;
     height: 58px;
+    margin-bottom: 12px;
     border: 0;
-    border-radius: 13px;
-    margin-bottom: 11px;
-    cursor: pointer;
+    border-radius: 14px;
     color: white;
+    background: #6276ff;
     font-size: 16px;
     font-weight: 800;
-    background: #536dff;
+    letter-spacing: 1px;
+    cursor: pointer;
     transition:
         transform 0.15s ease,
         background 0.15s ease,
         box-shadow 0.15s ease;
+    box-shadow: 0 12px 35px rgba(70, 85, 220, 0.2);
 }
 
 .menu-button:hover {
     transform: translateY(-2px);
-    background: #667eff;
-    box-shadow: 0 12px 30px rgba(82,108,255,0.25);
+    background: #7183ff;
+    box-shadow: 0 15px 40px rgba(70, 85, 220, 0.3);
 }
 
 .menu-button:active {
@@ -130,135 +126,132 @@ canvas {
 }
 
 .menu-button.secondary {
-    background: #242a36;
-    color: #d9deea;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: none;
 }
 
 .menu-button.secondary:hover {
-    background: #303746;
-}
-
-.version {
-    margin-top: 18px;
-    color: #4d5565;
-    font-size: 11px;
+    background: rgba(255,255,255,0.11);
 }
 
 /* =========================================================
    MATCHMAKING
 ========================================================= */
 
-.match-card {
-    width: min(430px, calc(100vw - 32px));
-    padding: 27px;
-    border-radius: 22px;
-    background: rgba(18,22,31,0.96);
-    border: 1px solid rgba(255,255,255,0.1);
-    box-shadow: 0 25px 80px rgba(0,0,0,0.5);
+#matchScreen {
+    background:
+        radial-gradient(circle at 50% 30%, rgba(80, 100, 255, 0.12), transparent 45%),
+        rgba(5, 7, 11, 0.92);
 }
 
-.card-title {
-    font-size: 28px;
+.match-box {
+    width: min(430px, calc(100vw - 30px));
+    padding: 30px;
+    border-radius: 22px;
+
+    background: rgba(16, 20, 29, 0.96);
+    border: 1px solid rgba(255,255,255,0.09);
+
+    box-shadow:
+        0 30px 80px rgba(0,0,0,0.55),
+        inset 0 1px rgba(255,255,255,0.04);
+
+    backdrop-filter: blur(20px);
+}
+
+.match-title {
+    font-size: 30px;
     font-weight: 900;
     margin-bottom: 7px;
 }
 
-.card-subtitle {
-    color: #8c96a9;
+.match-subtitle {
+    color: #8790a3;
     font-size: 13px;
-    line-height: 1.5;
-    margin-bottom: 22px;
+    margin-bottom: 25px;
 }
 
-.input-label {
+.field-label {
     display: block;
-    color: #aeb7c8;
+    margin: 0 0 7px 2px;
+    color: #aeb5c5;
     font-size: 12px;
     font-weight: 700;
-    margin-bottom: 7px;
 }
 
-.input {
+input {
     width: 100%;
     height: 48px;
+    margin-bottom: 15px;
     padding: 0 14px;
-    border: 1px solid #343b49;
+
+    border: 1px solid #303747;
     border-radius: 11px;
     outline: none;
-    background: #202531;
+
+    background: #1b202b;
     color: white;
+
     font-size: 14px;
-    margin-bottom: 16px;
-    user-select: text;
+
+    transition:
+        border 0.15s,
+        box-shadow 0.15s;
 }
 
-.input::placeholder {
-    color: #687286;
+input::placeholder {
+    color: #697184;
 }
 
-.input:focus {
-    border-color: #637aff;
-    box-shadow: 0 0 0 3px rgba(99,122,255,0.12);
+input:focus {
+    border-color: #7184ff;
+    box-shadow: 0 0 0 3px rgba(113,132,255,0.12);
 }
 
 .action-button {
     width: 100%;
     height: 48px;
+    margin-bottom: 10px;
+
     border: 0;
     border-radius: 11px;
-    cursor: pointer;
+
     color: white;
-    background: #536dff;
-    font-weight: 800;
+    background: #6276ff;
+
     font-size: 14px;
-    margin-bottom: 9px;
-    transition: 0.15s;
+    font-weight: 800;
+
+    cursor: pointer;
+
+    transition:
+        transform 0.15s,
+        background 0.15s;
 }
 
 .action-button:hover {
-    background: #667eff;
+    background: #7183ff;
     transform: translateY(-1px);
 }
 
 .action-button.secondary {
-    background: #292f3b;
+    background: #292f3c;
 }
 
 .action-button.secondary:hover {
-    background: #353d4c;
-}
-
-.divider {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 13px 0;
-    color: #596274;
-    font-size: 11px;
-}
-
-.divider::before,
-.divider::after {
-    content: "";
-    height: 1px;
-    flex: 1;
-    background: rgba(255,255,255,0.08);
-}
-
-.status {
-    min-height: 18px;
-    margin-top: 13px;
-    text-align: center;
-    color: #8e98ab;
-    font-size: 12px;
+    background: #343c4a;
 }
 
 .back-button {
+    margin-top: 8px;
     width: 100%;
-    margin-top: 13px;
+    height: 42px;
+
     border: 0;
     background: transparent;
-    color: #737d91;
+    color: #737d90;
+
     cursor: pointer;
     font-size: 13px;
 }
@@ -271,162 +264,238 @@ canvas {
    WAITING ROOM
 ========================================================= */
 
-.waiting-card {
-    width: min(430px, calc(100vw - 32px));
-    padding: 28px;
-    text-align: center;
-    border-radius: 22px;
-    background: rgba(18,22,31,0.96);
-    border: 1px solid rgba(255,255,255,0.1);
-    box-shadow: 0 25px 80px rgba(0,0,0,0.5);
+#waitingScreen {
+    background:
+        radial-gradient(circle at 50% 35%, rgba(80, 100, 255, 0.12), transparent 45%),
+        rgba(5, 7, 11, 0.93);
 }
 
-.waiting-icon {
-    width: 66px;
-    height: 66px;
-    margin: 0 auto 18px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(83,109,255,0.12);
-    border: 1px solid rgba(83,109,255,0.25);
-    font-size: 28px;
+.waiting-box {
+    width: min(450px, calc(100vw - 30px));
+    padding: 32px;
+
+    text-align: center;
+
+    background: rgba(16,20,29,0.97);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 22px;
+
+    box-shadow: 0 30px 80px rgba(0,0,0,0.55);
 }
 
 .waiting-title {
-    font-size: 25px;
+    font-size: 28px;
     font-weight: 900;
 }
 
 .waiting-subtitle {
-    margin-top: 7px;
-    color: #8993a7;
+    margin-top: 8px;
+    color: #858ea1;
     font-size: 13px;
 }
 
 .room-code {
-    margin: 22px 0 10px;
-    padding: 17px;
-    border-radius: 13px;
-    border: 1px solid rgba(255,255,255,0.08);
-    background: #131720;
-    color: #91a2ff;
-    font-size: 30px;
+    margin: 25px 0 15px;
+
+    padding: 18px;
+
+    border-radius: 14px;
+    border: 1px solid rgba(113,132,255,0.25);
+
+    background: rgba(98,118,255,0.08);
+
+    color: #8d9cff;
+
+    font-size: 32px;
     font-weight: 900;
     letter-spacing: 7px;
 }
 
-.room-label {
-    color: #626c7e;
-    font-size: 10px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-}
-
-.player-count {
-    margin: 18px 0;
-    padding: 13px;
-    border-radius: 11px;
-    background: rgba(255,255,255,0.04);
-    color: #cbd1dc;
+.waiting-status {
+    margin: 15px 0 22px;
+    color: #9aa3b5;
     font-size: 13px;
 }
 
-.waiting-actions {
-    display: flex;
-    gap: 9px;
+.player-count {
+    margin-bottom: 20px;
+    padding: 12px;
+
+    border-radius: 10px;
+    background: rgba(255,255,255,0.04);
+
+    color: #c8ceda;
+    font-size: 13px;
 }
 
-.waiting-actions button {
-    flex: 1;
+.copy-button {
+    background: #292f3c;
+}
+
+.enter-button {
+    background: #6276ff;
+}
+
+.leave-button {
+    background: transparent;
+    color: #7d8697;
 }
 
 /* =========================================================
-   GAME HUD
+   HOW TO PLAY
 ========================================================= */
 
-#gameHud {
+#howScreen {
+    background: rgba(5,7,11,0.92);
+}
+
+.how-box {
+    width: min(500px, calc(100vw - 30px));
+    padding: 32px;
+
+    background: rgba(16,20,29,0.97);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 22px;
+
+    box-shadow: 0 30px 80px rgba(0,0,0,0.55);
+}
+
+.how-title {
+    font-size: 28px;
+    font-weight: 900;
+    margin-bottom: 22px;
+}
+
+.control-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 14px 0;
+
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.control-name {
+    color: #bfc6d5;
+}
+
+.keys {
+    display: flex;
+    gap: 5px;
+}
+
+.key {
+    min-width: 34px;
+    padding: 7px 9px;
+
+    text-align: center;
+
+    border-radius: 7px;
+    background: #252b38;
+    border: 1px solid #363d4d;
+
+    color: white;
+    font-weight: 800;
+    font-size: 12px;
+}
+
+/* =========================================================
+   GAME UI
+========================================================= */
+
+#gameUI {
     position: fixed;
     inset: 0;
     z-index: 20;
+
     pointer-events: none;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.2s;
+
+    display: none;
 }
 
-#gameHud.active {
-    opacity: 1;
-    visibility: visible;
+#gameUI.active {
+    display: block;
 }
 
-.hud-top-left {
+.hud {
     position: absolute;
-    left: 18px;
     top: 18px;
-    padding: 12px 15px;
+    left: 18px;
+
+    padding: 13px 16px;
+
     border-radius: 13px;
-    background: rgba(12,15,22,0.78);
-    border: 1px solid rgba(255,255,255,0.1);
+
+    background: rgba(12,15,21,0.82);
+    border: 1px solid rgba(255,255,255,0.08);
+
     backdrop-filter: blur(10px);
+
+    font-size: 13px;
 }
 
 .hud-name {
-    font-size: 14px;
     font-weight: 800;
 }
 
 .hud-room {
-    margin-top: 3px;
-    color: #8993a7;
+    margin-top: 4px;
+    color: #838da0;
     font-size: 11px;
 }
 
-.hud-players {
-    margin-top: 7px;
-    color: #8196ff;
-    font-size: 11px;
-    font-weight: 700;
-}
-
-.hud-controls {
+.controls {
     position: absolute;
     right: 18px;
     bottom: 18px;
+
     padding: 11px 15px;
-    border-radius: 12px;
-    color: #9ba5b8;
-    background: rgba(12,15,22,0.78);
-    border: 1px solid rgba(255,255,255,0.09);
-    backdrop-filter: blur(10px);
+
+    border-radius: 11px;
+
+    background: rgba(12,15,21,0.82);
+    border: 1px solid rgba(255,255,255,0.08);
+
+    color: #9aa3b4;
+
     font-size: 12px;
 }
 
-.hud-controls b {
+.controls b {
     color: white;
 }
 
 /* =========================================================
-   MESSAGE
+   NOTIFICATION
 ========================================================= */
 
 #message {
     position: fixed;
-    left: 50%;
     top: 22px;
-    z-index: 300;
-    transform: translateX(-50%) translateY(-8px);
+    left: 50%;
+
+    z-index: 500;
+
+    transform: translateX(-50%) translateY(-10px);
+
     padding: 11px 18px;
-    border-radius: 11px;
-    background: rgba(12,15,22,0.94);
+
+    border-radius: 10px;
+
+    background: rgba(12,15,21,0.94);
     border: 1px solid rgba(255,255,255,0.1);
+
     color: white;
+
     font-size: 13px;
+
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s, transform 0.2s;
+
+    transition:
+        opacity 0.2s,
+        transform 0.2s;
 }
 
 #message.show {
@@ -435,63 +504,30 @@ canvas {
 }
 
 /* =========================================================
-   HOW TO PLAY
-========================================================= */
-
-.how-card {
-    width: min(470px, calc(100vw - 32px));
-    padding: 28px;
-    border-radius: 22px;
-    background: rgba(18,22,31,0.96);
-    border: 1px solid rgba(255,255,255,0.1);
-    box-shadow: 0 25px 80px rgba(0,0,0,0.5);
-}
-
-.how-row {
-    display: flex;
-    gap: 13px;
-    margin: 17px 0;
-    align-items: center;
-}
-
-.key-box {
-    min-width: 72px;
-    padding: 9px;
-    text-align: center;
-    border-radius: 9px;
-    background: #252b37;
-    border: 1px solid rgba(255,255,255,0.08);
-    color: white;
-    font-weight: 800;
-    font-size: 12px;
-}
-
-.how-text {
-    color: #9da6b8;
-    font-size: 13px;
-}
-
-/* =========================================================
    MOBILE
 ========================================================= */
 
 @media (max-width: 600px) {
-    .menu-card,
-    .match-card,
-    .waiting-card,
-    .how-card {
-        padding: 22px;
+
+    .match-box,
+    .waiting-box,
+    .how-box {
+        padding: 24px;
     }
 
-    .hud-top-left {
-        left: 10px;
-        top: 10px;
+    .room-code {
+        font-size: 27px;
     }
 
-    .hud-controls {
+    .controls {
         right: 10px;
         bottom: 10px;
         font-size: 10px;
+    }
+
+    .hud {
+        top: 10px;
+        left: 10px;
     }
 }
 </style>
@@ -501,200 +537,246 @@ canvas {
 
 <canvas id="game"></canvas>
 
-<!-- =====================================================
+<!-- =========================================================
      MAIN MENU
-===================================================== -->
+========================================================= -->
 
-<div id="menuScreen" class="screen">
-    <div class="menu">
+<div id="menuScreen" class="screen active">
+
+    <div class="menu-box">
 
         <div class="logo">
-            <h1>Circle World</h1>
-            <p>Explore. Move. Play together.</p>
+            CIRCLE<span>WORLD</span>
         </div>
 
-        <div class="menu-card">
-            <button id="playBtn" class="menu-button">
+        <div class="logo-subtitle">
+            Multiplayer World
+        </div>
+
+        <div class="menu-buttons">
+
+            <button
+                type="button"
+                id="playBtn"
+                class="menu-button">
                 PLAY
             </button>
 
-            <button id="howBtn" class="menu-button secondary">
+            <button
+                type="button"
+                id="howBtn"
+                class="menu-button secondary">
                 HOW TO PLAY
             </button>
 
-            <div class="version">
-                Multiplayer Edition
-            </div>
         </div>
 
     </div>
+
 </div>
 
-<!-- =====================================================
-     HOW TO PLAY
-===================================================== -->
-
-<div id="howScreen" class="screen hidden">
-    <div class="how-card">
-
-        <div class="card-title">How to Play</div>
-
-        <div class="card-subtitle">
-            Create a room and send your room code to a friend,
-            or join somebody else's room.
-        </div>
-
-        <div class="how-row">
-            <div class="key-box">W A S D</div>
-            <div class="how-text">Move your player around the world.</div>
-        </div>
-
-        <div class="how-row">
-            <div class="key-box">SHIFT</div>
-            <div class="how-text">Sprint and move faster.</div>
-        </div>
-
-        <div class="how-row">
-            <div class="key-box">ROOM</div>
-            <div class="how-text">Use the same room code to play together.</div>
-        </div>
-
-        <button id="howBackBtn" class="action-button secondary">
-            BACK
-        </button>
-
-    </div>
-</div>
-
-<!-- =====================================================
+<!-- =========================================================
      MATCHMAKING
-===================================================== -->
+========================================================= -->
 
-<div id="matchScreen" class="screen hidden">
-    <div class="match-card">
+<div id="matchScreen" class="screen">
 
-        <div class="card-title">Matchmaking</div>
+    <div class="match-box">
 
-        <div class="card-subtitle">
-            Enter your name, then create a room or join an
-            existing room with a code.
+        <div class="match-title">
+            Matchmaking
         </div>
 
-        <label class="input-label" for="nameInput">
+        <div class="match-subtitle">
+            Create a room or join one with a code.
+        </div>
+
+        <label class="field-label">
             PLAYER NAME
         </label>
 
         <input
             id="nameInput"
-            class="input"
+            type="text"
             maxlength="16"
             autocomplete="off"
-            placeholder="Enter your name"
-        >
+            placeholder="Enter your name">
 
-        <button id="createBtn" class="action-button">
+        <button
+            type="button"
+            id="createBtn"
+            class="action-button">
             CREATE ROOM
         </button>
 
-        <div class="divider">OR</div>
-
-        <label class="input-label" for="roomInput">
+        <label class="field-label" style="margin-top: 10px;">
             ROOM CODE
         </label>
 
         <input
             id="roomInput"
-            class="input"
-            maxlength="6"
+            type="text"
+            maxlength="12"
             autocomplete="off"
-            autocapitalize="characters"
-            placeholder="Example: A7K2PQ"
-        >
+            placeholder="Enter room code">
 
-        <button id="joinBtn" class="action-button secondary">
+        <button
+            type="button"
+            id="joinBtn"
+            class="action-button secondary">
             JOIN ROOM
         </button>
 
-        <div id="matchStatus" class="status">
-            Ready.
-        </div>
-
-        <button id="matchBackBtn" class="back-button">
-            ← Back to menu
+        <button
+            type="button"
+            id="matchBackBtn"
+            class="back-button">
+            ← Back to Main Menu
         </button>
 
     </div>
+
 </div>
 
-<!-- =====================================================
+<!-- =========================================================
      WAITING ROOM
-===================================================== -->
+========================================================= -->
 
-<div id="waitingScreen" class="screen hidden">
-    <div class="waiting-card">
+<div id="waitingScreen" class="screen">
 
-        <div class="waiting-icon">●</div>
+    <div class="waiting-box">
 
         <div class="waiting-title">
-            Room Ready
+            Room Created
         </div>
 
         <div class="waiting-subtitle">
-            Share this code with the other player.
+            Send this code to your friend.
         </div>
 
-        <div class="room-label">
-            ROOM CODE
-        </div>
-
-        <div id="roomCodeDisplay" class="room-code">
+        <div
+            id="roomCodeDisplay"
+            class="room-code">
             ------
         </div>
 
-        <button id="copyBtn" class="action-button">
+        <button
+            type="button"
+            id="copyBtn"
+            class="action-button copy-button">
             COPY ROOM CODE
         </button>
 
-        <div id="waitingPlayers" class="player-count">
+        <div
+            id="waitingStatus"
+            class="waiting-status">
+            Waiting for players...
+        </div>
+
+        <div
+            id="playerCount"
+            class="player-count">
             Players: 1
         </div>
 
-        <div class="waiting-actions">
-            <button id="startBtn" class="action-button">
-                ENTER GAME
-            </button>
+        <button
+            type="button"
+            id="enterGameBtn"
+            class="action-button enter-button">
+            ENTER GAME
+        </button>
 
-            <button id="leaveBtn" class="action-button secondary">
-                LEAVE
-            </button>
-        </div>
+        <button
+            type="button"
+            id="leaveRoomBtn"
+            class="action-button leave-button">
+            LEAVE ROOM
+        </button>
 
     </div>
+
 </div>
 
-<!-- =====================================================
-     GAME HUD
-===================================================== -->
+<!-- =========================================================
+     HOW TO PLAY
+========================================================= -->
 
-<div id="gameHud">
+<div id="howScreen" class="screen">
 
-    <div class="hud-top-left">
+    <div class="how-box">
 
-        <div id="hudName" class="hud-name">
+        <div class="how-title">
+            How To Play
+        </div>
+
+        <div class="control-row">
+            <div class="control-name">
+                Move
+            </div>
+
+            <div class="keys">
+                <div class="key">W</div>
+                <div class="key">A</div>
+                <div class="key">S</div>
+                <div class="key">D</div>
+            </div>
+        </div>
+
+        <div class="control-row">
+            <div class="control-name">
+                Sprint
+            </div>
+
+            <div class="keys">
+                <div class="key">SHIFT</div>
+            </div>
+        </div>
+
+        <div class="control-row">
+            <div class="control-name">
+                Multiplayer
+            </div>
+
+            <div style="color:#858ea1;font-size:12px;">
+                Create or join a room
+            </div>
+        </div>
+
+        <button
+            type="button"
+            id="howBackBtn"
+            class="action-button secondary"
+            style="margin-top:22px;">
+            BACK
+        </button>
+
+    </div>
+
+</div>
+
+<!-- =========================================================
+     GAME UI
+========================================================= -->
+
+<div id="gameUI">
+
+    <div class="hud">
+
+        <div
+            id="hudName"
+            class="hud-name">
             Player
         </div>
 
-        <div id="hudRoom" class="hud-room">
+        <div
+            id="hudRoom"
+            class="hud-room">
             Room: ------
-        </div>
-
-        <div id="hudPlayers" class="hud-players">
-            Players: 1
         </div>
 
     </div>
 
-    <div class="hud-controls">
+    <div class="controls">
         <b>W A S D</b> Move
         &nbsp; • &nbsp;
         <b>SHIFT</b> Sprint
@@ -705,133 +787,23 @@ canvas {
 <div id="message"></div>
 
 <script>
-"use strict";
-
 /* =========================================================
-   DOM
+   CANVAS
 ========================================================= */
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-const menuScreen = document.getElementById("menuScreen");
-const howScreen = document.getElementById("howScreen");
-const matchScreen = document.getElementById("matchScreen");
-const waitingScreen = document.getElementById("waitingScreen");
-const gameHud = document.getElementById("gameHud");
-
-const playBtn = document.getElementById("playBtn");
-const howBtn = document.getElementById("howBtn");
-const howBackBtn = document.getElementById("howBackBtn");
-
-const nameInput = document.getElementById("nameInput");
-const roomInput = document.getElementById("roomInput");
-
-const createBtn = document.getElementById("createBtn");
-const joinBtn = document.getElementById("joinBtn");
-const matchBackBtn = document.getElementById("matchBackBtn");
-
-const matchStatus = document.getElementById("matchStatus");
-
-const roomCodeDisplay =
-    document.getElementById("roomCodeDisplay");
-
-const copyBtn =
-    document.getElementById("copyBtn");
-
-const waitingPlayers =
-    document.getElementById("waitingPlayers");
-
-const startBtn =
-    document.getElementById("startBtn");
-
-const leaveBtn =
-    document.getElementById("leaveBtn");
-
-const hudName =
-    document.getElementById("hudName");
-
-const hudRoom =
-    document.getElementById("hudRoom");
-
-const hudPlayers =
-    document.getElementById("hudPlayers");
-
-const message =
-    document.getElementById("message");
-
-
-/* =========================================================
-   SCREEN CONTROL
-========================================================= */
-
-const screens = [
-    menuScreen,
-    howScreen,
-    matchScreen,
-    waitingScreen
-];
-
-function showScreen(screen) {
-
-    for (const s of screens) {
-        s.classList.add("hidden");
-    }
-
-    if (screen) {
-        screen.classList.remove("hidden");
-    }
-}
-
-function enterGame() {
-
-    showScreen(null);
-
-    gameHud.classList.add("active");
-
-    gameStarted = true;
-
-    updateHud();
-
-    /*
-        Clear any keys that might have been held
-        while leaving the menu/input fields.
-    */
-    clearKeys();
-
-    /*
-        Snap camera to player when entering.
-    */
-    camera.x = player.x;
-    camera.y = player.y;
-}
-
-function leaveGameToMenu() {
-
-    gameStarted = false;
-
-    gameHud.classList.remove("active");
-
-    showScreen(menuScreen);
-
-    clearKeys();
-}
-
-
-/* =========================================================
-   CANVAS
-========================================================= */
-
 let width = window.innerWidth;
 let height = window.innerHeight;
+let dpr = 1;
 
 function resize() {
 
     width = window.innerWidth;
     height = window.innerHeight;
 
-    const dpr =
-        Math.min(window.devicePixelRatio || 1, 2);
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     canvas.width = Math.floor(width * dpr);
     canvas.height = Math.floor(height * dpr);
@@ -850,9 +822,147 @@ function resize() {
 }
 
 window.addEventListener("resize", resize);
-
 resize();
 
+/* =========================================================
+   DOM
+========================================================= */
+
+const menuScreen = document.getElementById("menuScreen");
+const matchScreen = document.getElementById("matchScreen");
+const waitingScreen = document.getElementById("waitingScreen");
+const howScreen = document.getElementById("howScreen");
+
+const gameUI = document.getElementById("gameUI");
+
+const playBtn = document.getElementById("playBtn");
+const howBtn = document.getElementById("howBtn");
+
+const howBackBtn = document.getElementById("howBackBtn");
+const matchBackBtn = document.getElementById("matchBackBtn");
+
+const nameInput = document.getElementById("nameInput");
+const roomInput = document.getElementById("roomInput");
+
+const createBtn = document.getElementById("createBtn");
+const joinBtn = document.getElementById("joinBtn");
+
+const roomCodeDisplay =
+    document.getElementById("roomCodeDisplay");
+
+const copyBtn =
+    document.getElementById("copyBtn");
+
+const waitingStatus =
+    document.getElementById("waitingStatus");
+
+const playerCount =
+    document.getElementById("playerCount");
+
+const enterGameBtn =
+    document.getElementById("enterGameBtn");
+
+const leaveRoomBtn =
+    document.getElementById("leaveRoomBtn");
+
+const hudName =
+    document.getElementById("hudName");
+
+const hudRoom =
+    document.getElementById("hudRoom");
+
+const message =
+    document.getElementById("message");
+
+/* =========================================================
+   SCREEN MANAGEMENT
+========================================================= */
+
+const screens = [
+    menuScreen,
+    matchScreen,
+    waitingScreen,
+    howScreen
+];
+
+function showScreen(screen) {
+
+    for (const s of screens) {
+        s.classList.remove("active");
+    }
+
+    screen.classList.add("active");
+}
+
+function showGame() {
+
+    for (const s of screens) {
+        s.classList.remove("active");
+    }
+
+    gameUI.classList.add("active");
+
+    gameStarted = true;
+
+    hudName.textContent = player.name;
+    hudRoom.textContent =
+        "Room: " + (currentRoom || "------");
+
+    clearKeys();
+}
+
+function hideGame() {
+
+    gameUI.classList.remove("active");
+
+    gameStarted = false;
+
+    clearKeys();
+}
+
+/* =========================================================
+   MAIN MENU BUTTONS
+========================================================= */
+
+playBtn.addEventListener("click", function(e) {
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    hideGame();
+
+    showScreen(matchScreen);
+
+    setTimeout(() => {
+        nameInput.focus();
+    }, 50);
+});
+
+howBtn.addEventListener("click", function(e) {
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    showScreen(howScreen);
+});
+
+howBackBtn.addEventListener("click", function(e) {
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    showScreen(menuScreen);
+});
+
+matchBackBtn.addEventListener("click", function(e) {
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    resetMultiplayer();
+
+    showScreen(menuScreen);
+});
 
 /* =========================================================
    WORLD
@@ -864,6 +974,27 @@ const world = {
     gridSize: 100
 };
 
+/* =========================================================
+   COLORS
+========================================================= */
+
+function randomColor() {
+
+    const colors = [
+        "#6f82ff",
+        "#ff657a",
+        "#5dd6a0",
+        "#f4bd58",
+        "#b778ff",
+        "#4dc8e8",
+        "#ff8c52",
+        "#e66bff"
+    ];
+
+    return colors[
+        Math.floor(Math.random() * colors.length)
+    ];
+}
 
 /* =========================================================
    PLAYER
@@ -889,54 +1020,18 @@ const player = {
     color: randomColor()
 };
 
-
-/* =========================================================
-   REMOTE PLAYERS
-========================================================= */
-
 const remotePlayers = new Map();
 
-
-/* =========================================================
-   CAMERA
-========================================================= */
-
-const camera = {
-
+let camera = {
     x: player.x,
     y: player.y
 };
-
 
 /* =========================================================
    GAME STATE
 ========================================================= */
 
 let gameStarted = false;
-
-let peer = null;
-
-let isHost = false;
-
-let currentRoom = null;
-
-let hostConnection = null;
-
-/*
-    Every connection we have.
-
-    Host:
-        connections = all players
-
-    Client:
-        connections = host
-*/
-const connections = new Map();
-
-
-/* =========================================================
-   INPUT
-========================================================= */
 
 const keys = {};
 
@@ -947,28 +1042,44 @@ function clearKeys() {
     }
 }
 
+/* =========================================================
+   INPUT
+========================================================= */
 
-/*
-    IMPORTANT:
+function isTypingTarget(target) {
 
-    WASD only works when actually inside
-    the game.
+    if (!target) {
+        return false;
+    }
 
-    This means typing "wads" in an input
-    will NEVER move the player.
-*/
-window.addEventListener("keydown", event => {
+    const tag =
+        target.tagName
+            ? target.tagName.toLowerCase()
+            : "";
 
-    const key = event.key.toLowerCase();
+    return (
+        tag === "input" ||
+        tag === "textarea" ||
+        tag === "select" ||
+        target.isContentEditable
+    );
+}
 
-    const typing =
-        event.target &&
-        (
-            event.target.tagName === "INPUT" ||
-            event.target.tagName === "TEXTAREA"
-        );
+window.addEventListener("keydown", function(e) {
 
-    if (typing || !gameStarted) {
+    const key = e.key.toLowerCase();
+
+    /*
+       VERY IMPORTANT:
+       WASD does absolutely nothing while
+       typing in matchmaking inputs.
+    */
+
+    if (isTypingTarget(e.target)) {
+        return;
+    }
+
+    if (!gameStarted) {
         return;
     }
 
@@ -980,16 +1091,15 @@ window.addEventListener("keydown", event => {
         key === "shift"
     ) {
 
-        event.preventDefault();
+        e.preventDefault();
 
         keys[key] = true;
     }
 });
 
+window.addEventListener("keyup", function(e) {
 
-window.addEventListener("keyup", event => {
-
-    const key = event.key.toLowerCase();
+    const key = e.key.toLowerCase();
 
     if (
         key === "w" ||
@@ -1002,59 +1112,35 @@ window.addEventListener("keyup", event => {
     }
 });
 
-
 window.addEventListener("blur", clearKeys);
 
-
-/*
-    Prevent WASD/Shift from getting stuck if
-    the user clicks away from the game.
-*/
-document.addEventListener("visibilitychange", () => {
-
-    if (document.hidden) {
-        clearKeys();
-    }
-});
-
-
 /* =========================================================
-   MAIN MENU BUTTONS
+   MESSAGE
 ========================================================= */
 
-playBtn.addEventListener("click", () => {
+let messageTimer = null;
 
-    showScreen(matchScreen);
+function showMessage(text) {
 
-    setTimeout(() => {
-        nameInput.focus();
-    }, 50);
-});
+    message.textContent = text;
+    message.classList.add("show");
 
+    clearTimeout(messageTimer);
 
-howBtn.addEventListener("click", () => {
-
-    showScreen(howScreen);
-});
-
-
-howBackBtn.addEventListener("click", () => {
-
-    showScreen(menuScreen);
-});
-
-
-matchBackBtn.addEventListener("click", () => {
-
-    resetMultiplayer();
-
-    showScreen(menuScreen);
-});
-
+    messageTimer = setTimeout(() => {
+        message.classList.remove("show");
+    }, 2500);
+}
 
 /* =========================================================
-   ROOM CODE
+   PEERJS
 ========================================================= */
+
+let peer = null;
+let isHost = false;
+let currentRoom = null;
+
+const connections = new Map();
 
 function generateRoomCode() {
 
@@ -1076,18 +1162,24 @@ function generateRoomCode() {
     return code;
 }
 
+function makeHostId(room) {
 
-function makePeerId(code) {
-
-    return (
-        "circle-world-" +
-        code.toLowerCase()
-    );
+    return "circle-world-" +
+        room.toLowerCase();
 }
 
+function makePlayerId() {
+
+    return "circle-player-" +
+        Math.random()
+            .toString(36)
+            .slice(2, 12) +
+        "-" +
+        Date.now().toString(36);
+}
 
 /* =========================================================
-   PEER INITIALIZATION
+   INITIALIZE PEER
 ========================================================= */
 
 function initializePeer(peerId, callback) {
@@ -1096,94 +1188,68 @@ function initializePeer(peerId, callback) {
 
         try {
             peer.destroy();
-        } catch {}
-    }
-
-    peer = null;
-
-    /*
-        PeerJS may not be loaded if the CDN
-        failed, so handle it cleanly.
-    */
-    if (typeof Peer === "undefined") {
-
-        showMessage(
-            "Multiplayer library failed to load."
-        );
-
-        matchStatus.textContent =
-            "PeerJS could not load.";
-
-        return;
+        } catch (err) {}
     }
 
     peer = new Peer(peerId);
 
-    peer.on("open", id => {
+    peer.on("open", function(id) {
 
         player.id = id;
 
-        if (typeof callback === "function") {
+        if (callback) {
             callback();
         }
     });
 
-
-    peer.on("connection", connection => {
+    peer.on("connection", function(connection) {
 
         /*
-            Only the host accepts incoming
-            player connections.
+           Only the room host accepts incoming players.
         */
+
         if (!isHost) {
             return;
         }
 
-        setupConnection(connection, false);
+        setupConnection(connection);
     });
 
+    peer.on("error", function(err) {
 
-    peer.on("error", error => {
+        console.error("PeerJS error:", err);
 
-        console.error(
-            "PeerJS error:",
-            error
-        );
+        if (err.type === "unavailable-id") {
 
-        if (error.type === "unavailable-id") {
-
-            matchStatus.textContent =
-                "That room already exists. Try again.";
+            waitingStatus.textContent =
+                "That room already exists.";
 
             showMessage(
-                "That room already exists."
+                "That room code is already being used."
             );
 
-        } else if (
-            error.type === "peer-unavailable"
-        ) {
-
-            matchStatus.textContent =
-                "Room not found.";
+        } else if (err.type === "peer-unavailable") {
 
             showMessage(
                 "Room not found."
             );
 
+            waitingStatus.textContent =
+                "Room not found.";
+
         } else {
 
-            matchStatus.textContent =
-                "Connection error: " +
-                (error.type || "unknown");
-
             showMessage(
-                "Connection error."
+                "Connection error: " +
+                err.type
             );
+
+            waitingStatus.textContent =
+                "Connection error.";
         }
     });
 
-
-    peer.on("disconnected", () => {
+    peer.on("disconnected", function() {
 
         if (gameStarted) {
 
@@ -1194,23 +1260,22 @@ function initializePeer(peerId, callback) {
     });
 }
 
-
 /* =========================================================
    CREATE ROOM
 ========================================================= */
 
-createBtn.addEventListener("click", () => {
+createBtn.addEventListener("click", function(e) {
+
+    e.preventDefault();
+    e.stopPropagation();
 
     createRoom();
 });
 
-
 function createRoom() {
 
     const name =
-        nameInput.value
-            .trim()
-            .slice(0, 16);
+        nameInput.value.trim().slice(0, 16);
 
     player.name =
         name || "Player";
@@ -1219,90 +1284,48 @@ function createRoom() {
         generateRoomCode();
 
     currentRoom = code;
-
     isHost = true;
 
-    matchStatus.textContent =
+    roomCodeDisplay.textContent = code;
+
+    waitingStatus.textContent =
         "Creating room...";
 
-    createBtn.disabled = true;
-    joinBtn.disabled = true;
+    playerCount.textContent =
+        "Players: 1";
+
+    /*
+       Go from MATCHMAKING to WAITING ROOM.
+       The matchmaking screen remains intact.
+    */
+
+    showScreen(waitingScreen);
 
     initializePeer(
-        makePeerId(code),
-        () => {
+        makeHostId(code),
+        function() {
 
-            roomCodeDisplay.textContent =
-                code;
-
-            matchStatus.textContent =
-                "Room created!";
-
-            waitingPlayers.textContent =
-                "Players: 1";
-
-            updateHud();
-
-            /*
-                Go to waiting room.
-
-                The host can click ENTER GAME
-                whenever they want.
-            */
-            showScreen(waitingScreen);
+            waitingStatus.textContent =
+                "Room ready. Waiting for players...";
 
             showMessage(
                 "Room created: " + code
             );
-
-            createBtn.disabled = false;
-            joinBtn.disabled = false;
         }
     );
 }
-
 
 /* =========================================================
    JOIN ROOM
 ========================================================= */
 
-joinBtn.addEventListener("click", () => {
+joinBtn.addEventListener("click", function(e) {
+
+    e.preventDefault();
+    e.stopPropagation();
 
     joinRoom();
 });
-
-
-roomInput.addEventListener("input", () => {
-
-    roomInput.value =
-        roomInput.value
-            .toUpperCase()
-            .replace(/[^A-Z0-9]/g, "")
-            .slice(0, 6);
-});
-
-
-roomInput.addEventListener("keydown", event => {
-
-    if (event.key === "Enter") {
-
-        event.preventDefault();
-
-        joinRoom();
-    }
-});
-
-
-nameInput.addEventListener("keydown", event => {
-
-    if (event.key === "Enter") {
-
-        event.preventDefault();
-
-        roomInput.focus();
-    }
-});
-
 
 function joinRoom() {
 
@@ -1311,56 +1334,53 @@ function joinRoom() {
             .trim()
             .toUpperCase();
 
-    if (code.length !== 6) {
-
-        matchStatus.textContent =
-            "Enter a 6-character room code.";
+    if (code.length < 4) {
 
         showMessage(
             "Enter a valid room code."
         );
 
+        roomInput.focus();
+
         return;
     }
 
     player.name =
-        nameInput.value
-            .trim()
-            .slice(0, 16) ||
-        "Player";
+        nameInput.value.trim().slice(0, 16)
+        || "Player";
 
     currentRoom = code;
-
     isHost = false;
 
-    matchStatus.textContent =
-        "Connecting to room...";
+    waitingStatus.textContent =
+        "Connecting...";
 
-    createBtn.disabled = true;
-    joinBtn.disabled = true;
+    roomCodeDisplay.textContent =
+        code;
+
+    playerCount.textContent =
+        "Connecting...";
 
     /*
-        Joining players get their own
-        unique PeerJS ID.
+       Show the waiting/joining screen while
+       the connection is being established.
     */
+
+    showScreen(waitingScreen);
+
     const ownId =
-        "circle-player-" +
-        Math.random()
-            .toString(36)
-            .slice(2, 12);
+        makePlayerId();
 
     initializePeer(
         ownId,
-        () => {
+        function() {
 
-            const hostId =
-                makePeerId(code);
-
-            connectToHost(hostId);
+            connectToHost(
+                makeHostId(code)
+            );
         }
     );
 }
-
 
 /* =========================================================
    CONNECT TO HOST
@@ -1372,8 +1392,8 @@ function connectToHost(hostId) {
         return;
     }
 
-    matchStatus.textContent =
-        "Connecting to host...";
+    waitingStatus.textContent =
+        "Connecting to room...";
 
     const connection =
         peer.connect(
@@ -1383,18 +1403,15 @@ function connectToHost(hostId) {
             }
         );
 
-    hostConnection = connection;
-
-    setupConnection(
-        connection,
-        true
+    connections.set(
+        "host",
+        connection
     );
 
+    connection.on("open", function() {
 
-    connection.on("open", () => {
-
-        matchStatus.textContent =
-            "Connected!";
+        waitingStatus.textContent =
+            "Connected! Entering game...";
 
         sendToConnection(
             connection,
@@ -1406,81 +1423,59 @@ function connectToHost(hostId) {
                 name: player.name,
 
                 x: player.x,
-
                 y: player.y,
 
-                vx: 0,
-
-                vy: 0,
+                vx: player.vx,
+                vy: player.vy,
 
                 color: player.color
             }
         );
 
         /*
-            IMPORTANT:
-            The matchmaking panel is now
-            removed and the player enters
-            the actual game.
+           JOINER goes into the game after
+           the room connection succeeds.
         */
-        enterGame();
 
-        showMessage(
-            "Joined room!"
-        );
+        setTimeout(() => {
+
+            showGame();
+
+            showMessage(
+                "Joined room!"
+            );
+
+        }, 350);
     });
 
+    connection.on("error", function(err) {
 
-    connection.on("close", () => {
+        console.error(err);
 
-        if (!gameStarted) {
-
-            matchStatus.textContent =
-                "Connection closed.";
-
-            createBtn.disabled = false;
-            joinBtn.disabled = false;
-
-            showScreen(matchScreen);
-
-            return;
-        }
+        waitingStatus.textContent =
+            "Could not connect to room.";
 
         showMessage(
-            "Disconnected from host."
+            "Could not join that room."
         );
-
-        remotePlayers.clear();
-
-        updateHud();
     });
 }
-
 
 /* =========================================================
    CONNECTION SETUP
 ========================================================= */
 
-function setupConnection(
-    connection,
-    isJoining
-) {
+function setupConnection(connection) {
 
-    if (!connection) {
-        return;
-    }
-
-
-    connection.on("data", data => {
+    connection.on("data", function(data) {
 
         if (!data || !data.type) {
             return;
         }
 
-
-        /* =================================================
+        /* -------------------------------------------------
            HELLO
-        ================================================= */
+        ------------------------------------------------- */
 
         if (data.type === "hello") {
 
@@ -1488,33 +1483,32 @@ function setupConnection(
                 return;
             }
 
-            /*
-                Don't duplicate a player.
-            */
-            const existing =
-                remotePlayers.get(data.id);
-
-            const remote = existing || {
+            const remote = {
 
                 id: data.id,
 
-                name: data.name || "Player",
+                name:
+                    data.name ||
+                    "Player",
 
-                x: data.x ?? world.width / 2,
+                x:
+                    Number(data.x) ||
+                    world.width / 2,
 
-                y: data.y ?? world.height / 2,
+                y:
+                    Number(data.y) ||
+                    world.height / 2,
 
                 targetX:
-                    data.x ??
+                    Number(data.x) ||
                     world.width / 2,
 
                 targetY:
-                    data.y ??
+                    Number(data.y) ||
                     world.height / 2,
 
-                vx: data.vx || 0,
-
-                vy: data.vy || 0,
+                vx: 0,
+                vy: 0,
 
                 color:
                     data.color ||
@@ -1523,54 +1517,25 @@ function setupConnection(
                 radius: 28
             };
 
-
-            remote.name =
-                data.name || remote.name;
-
-            remote.color =
-                data.color || remote.color;
-
-            remote.x =
-                data.x ?? remote.x;
-
-            remote.y =
-                data.y ?? remote.y;
-
-            remote.targetX =
-                data.x ?? remote.targetX;
-
-            remote.targetY =
-                data.y ?? remote.targetY;
-
-
             remotePlayers.set(
                 data.id,
                 remote
             );
 
+            connections.set(
+                data.id,
+                connection
+            );
 
-            /*
-                Host stores the actual
-                connection using the player's ID.
-            */
             if (isHost) {
 
-                connections.set(
-                    data.id,
-                    connection
-                );
-
-
                 /*
-                    Send all EXISTING players
-                    to the new player.
-
-                    Do NOT send the new player
-                    itself.
+                   Send existing players to
+                   the new player.
                 */
+
                 for (
-                    const p
-                    of remotePlayers.values()
+                    const p of remotePlayers.values()
                 ) {
 
                     if (p.id === data.id) {
@@ -1582,142 +1547,80 @@ function setupConnection(
                         {
                             type: "playerJoined",
 
-                            player: serializePlayer(p)
+                            player: {
+                                id: p.id,
+                                name: p.name,
+                                x: p.x,
+                                y: p.y,
+                                color: p.color
+                            }
                         }
                     );
                 }
 
-
                 /*
-                    Tell every existing player
-                    that a new player joined.
+                   Tell everyone else about
+                   the new player.
                 */
+
                 broadcast(
                     {
                         type: "playerJoined",
 
                         player: {
                             id: data.id,
-
-                            name:
-                                data.name ||
-                                "Player",
-
-                            x:
-                                data.x ??
-                                world.width / 2,
-
-                            y:
-                                data.y ??
-                                world.height / 2,
-
-                            color:
-                                data.color ||
-                                randomColor()
+                            name: data.name,
+                            x: data.x,
+                            y: data.y,
+                            color: data.color
                         }
                     },
-
                     data.id
                 );
 
-
                 /*
-                    Also send the room state
-                    directly to the new player.
+                   Send room information to
+                   the new player.
                 */
+
                 sendToConnection(
                     connection,
                     {
-                        type: "worldInfo",
-
-                        players:
-                            getPlayerList()
-                                .filter(
-                                    p =>
-                                        p.id !== data.id
-                                )
+                        type: "roomReady"
                     }
                 );
 
-
-                showMessage(
-                    "A player joined!"
-                );
+                updatePlayerCount();
             }
 
-
-            updateHud();
+            return;
         }
 
+        /* -------------------------------------------------
+           ROOM READY
+        ------------------------------------------------- */
 
-        /* =================================================
-           WORLD INFO
-        ================================================= */
+        if (data.type === "roomReady") {
 
-        if (data.type === "worldInfo") {
+            if (!gameStarted) {
 
-            if (!Array.isArray(data.players)) {
-                return;
+                setTimeout(() => {
+
+                    showGame();
+
+                    showMessage(
+                        "Joined room!"
+                    );
+
+                }, 200);
             }
 
-            for (
-                const p
-                of data.players
-            ) {
-
-                if (
-                    !p ||
-                    !p.id ||
-                    p.id === player.id
-                ) {
-                    continue;
-                }
-
-                remotePlayers.set(
-                    p.id,
-                    {
-                        id: p.id,
-
-                        name:
-                            p.name ||
-                            "Player",
-
-                        x:
-                            p.x ??
-                            world.width / 2,
-
-                        y:
-                            p.y ??
-                            world.height / 2,
-
-                        targetX:
-                            p.x ??
-                            world.width / 2,
-
-                        targetY:
-                            p.y ??
-                            world.height / 2,
-
-                        vx: p.vx || 0,
-
-                        vy: p.vy || 0,
-
-                        color:
-                            p.color ||
-                            randomColor(),
-
-                        radius: 28
-                    }
-                );
-            }
-
-            updateHud();
+            return;
         }
 
-
-        /* =================================================
+        /* -------------------------------------------------
            PLAYER JOINED
-        ================================================= */
+        ------------------------------------------------- */
 
         if (data.type === "playerJoined") {
 
@@ -1726,7 +1629,6 @@ function setupConnection(
 
             if (
                 !p ||
-                !p.id ||
                 p.id === player.id
             ) {
                 return;
@@ -1736,29 +1638,15 @@ function setupConnection(
                 p.id,
                 {
                     id: p.id,
+                    name: p.name || "Player",
 
-                    name:
-                        p.name ||
-                        "Player",
+                    x: p.x,
+                    y: p.y,
 
-                    x:
-                        p.x ??
-                        world.width / 2,
-
-                    y:
-                        p.y ??
-                        world.height / 2,
-
-                    targetX:
-                        p.x ??
-                        world.width / 2,
-
-                    targetY:
-                        p.y ??
-                        world.height / 2,
+                    targetX: p.x,
+                    targetY: p.y,
 
                     vx: 0,
-
                     vy: 0,
 
                     color:
@@ -1769,13 +1657,14 @@ function setupConnection(
                 }
             );
 
-            updateHud();
+            updatePlayerCount();
+
+            return;
         }
 
-
-        /* =================================================
+        /* -------------------------------------------------
            POSITION UPDATE
-        ================================================= */
+        ------------------------------------------------- */
 
         if (data.type === "update") {
 
@@ -1786,12 +1675,10 @@ function setupConnection(
                 return;
             }
 
-
             let p =
                 remotePlayers.get(
                     data.id
                 );
-
 
             if (!p) {
 
@@ -1804,26 +1691,22 @@ function setupConnection(
                         "Player",
 
                     x:
-                        data.x ??
-                        world.width / 2,
+                        Number(data.x) || 0,
 
                     y:
-                        data.y ??
-                        world.height / 2,
+                        Number(data.y) || 0,
 
                     targetX:
-                        data.x ??
-                        world.width / 2,
+                        Number(data.x) || 0,
 
                     targetY:
-                        data.y ??
-                        world.height / 2,
+                        Number(data.y) || 0,
 
                     vx:
-                        data.vx || 0,
+                        Number(data.vx) || 0,
 
                     vy:
-                        data.vy || 0,
+                        Number(data.vy) || 0,
 
                     color:
                         data.color ||
@@ -1838,22 +1721,17 @@ function setupConnection(
                 );
             }
 
-
             p.targetX =
-                Number.isFinite(data.x)
-                    ? data.x
-                    : p.targetX;
+                Number(data.x) || 0;
 
             p.targetY =
-                Number.isFinite(data.y)
-                    ? data.y
-                    : p.targetY;
+                Number(data.y) || 0;
 
             p.vx =
-                data.vx || 0;
+                Number(data.vx) || 0;
 
             p.vy =
-                data.vy || 0;
+                Number(data.vy) || 0;
 
             if (data.name) {
                 p.name = data.name;
@@ -1863,20 +1741,11 @@ function setupConnection(
                 p.color = data.color;
             }
 
-
             /*
-                HOST RELAY:
-
-                This was one of the important
-                multiplayer problems.
-
-                When Player B moves, the host
-                receives the update and sends
-                it to Player C too.
-
-                That makes everybody see
-                everybody moving.
+               Host relays player movement
+               to every other player.
             */
+
             if (isHost) {
 
                 broadcast(
@@ -1884,18 +1753,15 @@ function setupConnection(
                     data.id
                 );
             }
+
+            return;
         }
 
-
-        /* =================================================
+        /* -------------------------------------------------
            PLAYER LEFT
-        ================================================= */
+        ------------------------------------------------- */
 
         if (data.type === "playerLeft") {
-
-            if (!data.id) {
-                return;
-            }
 
             remotePlayers.delete(
                 data.id
@@ -1905,17 +1771,14 @@ function setupConnection(
                 data.id
             );
 
-            updateHud();
+            updatePlayerCount();
+
+            return;
         }
     });
 
+    connection.on("close", function() {
 
-    connection.on("close", () => {
-
-        /*
-            If this is the host's connection
-            to a player, find the ID and remove it.
-        */
         for (
             const [id, c]
             of connections
@@ -1923,111 +1786,20 @@ function setupConnection(
 
             if (c === connection) {
 
-                remotePlayers.delete(id);
-
                 connections.delete(id);
 
-                /*
-                    Tell everybody else that
-                    this player left.
-                */
-                if (isHost) {
-
-                    broadcast(
-                        {
-                            type: "playerLeft",
-                            id: id
-                        },
-                        id
-                    );
-                }
+                remotePlayers.delete(id);
 
                 break;
             }
         }
 
-        updateHud();
-    });
-
-
-    connection.on("error", error => {
-
-        console.error(
-            "Connection error:",
-            error
-        );
+        updatePlayerCount();
     });
 }
 
-
 /* =========================================================
-   SERIALIZE PLAYER
-========================================================= */
-
-function serializePlayer(p) {
-
-    return {
-
-        id: p.id,
-
-        name: p.name,
-
-        x: p.x,
-
-        y: p.y,
-
-        vx: p.vx || 0,
-
-        vy: p.vy || 0,
-
-        color: p.color
-    };
-}
-
-
-/* =========================================================
-   PLAYER LIST
-========================================================= */
-
-function getPlayerList() {
-
-    const list = [
-
-        {
-            id: player.id,
-
-            name: player.name,
-
-            x: player.x,
-
-            y: player.y,
-
-            vx: player.vx,
-
-            vy: player.vy,
-
-            color: player.color
-        }
-    ];
-
-
-    for (
-        const p
-        of remotePlayers.values()
-    ) {
-
-        list.push(
-            serializePlayer(p)
-        );
-    }
-
-
-    return list;
-}
-
-
-/* =========================================================
-   NETWORK SEND
+   SEND
 ========================================================= */
 
 function sendToConnection(
@@ -2046,15 +1818,14 @@ function sendToConnection(
 
         connection.send(data);
 
-    } catch (error) {
+    } catch (err) {
 
         console.error(
             "Send error:",
-            error
+            err
         );
     }
 }
-
 
 function broadcast(
     data,
@@ -2066,10 +1837,7 @@ function broadcast(
         of connections
     ) {
 
-        if (
-            exceptId &&
-            id === exceptId
-        ) {
+        if (id === exceptId) {
             continue;
         }
 
@@ -2080,77 +1848,163 @@ function broadcast(
     }
 }
 
-
 /* =========================================================
-   NETWORK POSITION UPDATES
+   PLAYER COUNT
 ========================================================= */
 
-let networkTimer = 0;
+function updatePlayerCount() {
 
-const NETWORK_RATE = 1 / 30;
+    const count =
+        1 + remotePlayers.size;
 
+    playerCount.textContent =
+        "Players: " + count;
 
-function sendPositionUpdates(dt) {
-
-    if (!player.id) {
-        return;
-    }
-
-    networkTimer += dt;
-
-    if (
-        networkTimer <
-        NETWORK_RATE
-    ) {
-        return;
-    }
-
-    networkTimer = 0;
-
-
-    const packet = {
-
-        type: "update",
-
-        id: player.id,
-
-        name: player.name,
-
-        x: player.x,
-
-        y: player.y,
-
-        vx: player.vx,
-
-        vy: player.vy,
-
-        color: player.color
-    };
-
-
-    /*
-        Host sends directly to
-        every connected player.
-    */
     if (isHost) {
 
-        broadcast(packet);
-
-    } else if (hostConnection) {
-
-        /*
-            Client sends to host.
-
-            Host then relays it to
-            everybody else.
-        */
-        sendToConnection(
-            hostConnection,
-            packet
-        );
+        waitingStatus.textContent =
+            count > 1
+                ? "Player joined! You can enter the game."
+                : "Waiting for players...";
     }
 }
 
+/* =========================================================
+   COPY ROOM CODE
+========================================================= */
+
+copyBtn.addEventListener(
+    "click",
+    async function() {
+
+        if (!currentRoom) {
+            return;
+        }
+
+        try {
+
+            await navigator.clipboard.writeText(
+                currentRoom
+            );
+
+            showMessage(
+                "Room code copied!"
+            );
+
+        } catch (err) {
+
+            /*
+               Fallback for browsers where
+               clipboard API is unavailable.
+            */
+
+            const temp =
+                document.createElement("textarea");
+
+            temp.value =
+                currentRoom;
+
+            document.body.appendChild(temp);
+
+            temp.select();
+
+            document.execCommand("copy");
+
+            temp.remove();
+
+            showMessage(
+                "Room code copied!"
+            );
+        }
+    }
+);
+
+/* =========================================================
+   ENTER GAME
+========================================================= */
+
+enterGameBtn.addEventListener(
+    "click",
+    function() {
+
+        if (!peer) {
+
+            showMessage(
+                "Create or join a room first."
+            );
+
+            return;
+        }
+
+        showGame();
+
+        showMessage(
+            "Game started!"
+        );
+    }
+);
+
+/* =========================================================
+   LEAVE ROOM
+========================================================= */
+
+leaveRoomBtn.addEventListener(
+    "click",
+    function() {
+
+        resetMultiplayer();
+
+        hideGame();
+
+        showScreen(matchScreen);
+    }
+);
+
+/* =========================================================
+   RESET MULTIPLAYER
+========================================================= */
+
+function resetMultiplayer() {
+
+    clearKeys();
+
+    for (
+        const connection
+        of connections.values()
+    ) {
+
+        try {
+            connection.close();
+        } catch (err) {}
+    }
+
+    connections.clear();
+
+    remotePlayers.clear();
+
+    if (peer) {
+
+        try {
+            peer.destroy();
+        } catch (err) {}
+    }
+
+    peer = null;
+
+    currentRoom = null;
+    isHost = false;
+
+    player.id = null;
+
+    roomCodeDisplay.textContent =
+        "------";
+
+    waitingStatus.textContent =
+        "Waiting for players...";
+
+    playerCount.textContent =
+        "Players: 1";
+}
 
 /* =========================================================
    PHYSICS
@@ -2162,10 +2016,8 @@ function updatePlayer(dt) {
         return;
     }
 
-
     let dx = 0;
     let dy = 0;
-
 
     if (keys["w"]) {
         dy -= 1;
@@ -2183,13 +2035,11 @@ function updatePlayer(dt) {
         dx += 1;
     }
 
-
     const length =
         Math.sqrt(
             dx * dx +
             dy * dy
         );
-
 
     if (length > 0) {
 
@@ -2197,20 +2047,13 @@ function updatePlayer(dt) {
         dy /= length;
     }
 
-
-    const sprinting =
-        keys["shift"] &&
-        length > 0;
-
-
-    const maxSpeed =
-        sprinting
+    const speed =
+        keys["shift"]
             ? player.sprintSpeed
             : player.speed;
 
-
-    const acceleration = 2400;
-
+    const acceleration =
+        2200;
 
     if (length > 0) {
 
@@ -2226,12 +2069,9 @@ function updatePlayer(dt) {
 
     } else {
 
-        /*
-            Smooth friction.
-        */
         const friction =
             Math.pow(
-                0.0005,
+                0.001,
                 dt
             );
 
@@ -2239,32 +2079,20 @@ function updatePlayer(dt) {
         player.vy *= friction;
     }
 
-
-    /*
-        Clamp velocity.
-    */
     const velocity =
         Math.sqrt(
-            player.vx *
-                player.vx +
-            player.vy *
-                player.vy
+            player.vx * player.vx +
+            player.vy * player.vy
         );
 
-
-    if (
-        velocity >
-        maxSpeed
-    ) {
+    if (velocity > speed) {
 
         const factor =
-            maxSpeed /
-            velocity;
+            speed / velocity;
 
         player.vx *= factor;
         player.vy *= factor;
     }
-
 
     player.x +=
         player.vx * dt;
@@ -2272,117 +2100,54 @@ function updatePlayer(dt) {
     player.y +=
         player.vy * dt;
 
-
-    /*
-        World boundaries.
-    */
     const margin =
         player.radius;
 
+    player.x =
+        Math.max(
+            margin,
+            Math.min(
+                world.width - margin,
+                player.x
+            )
+        );
 
-    if (
-        player.x <
-        margin
-    ) {
-
-        player.x =
-            margin;
-
-        if (player.vx < 0) {
-            player.vx = 0;
-        }
-    }
-
-
-    if (
-        player.x >
-        world.width -
-        margin
-    ) {
-
-        player.x =
-            world.width -
-            margin;
-
-        if (player.vx > 0) {
-            player.vx = 0;
-        }
-    }
-
-
-    if (
-        player.y <
-        margin
-    ) {
-
-        player.y =
-            margin;
-
-        if (player.vy < 0) {
-            player.vy = 0;
-        }
-    }
-
-
-    if (
-        player.y >
-        world.height -
-        margin
-    ) {
-
-        player.y =
-            world.height -
-            margin;
-
-        if (player.vy > 0) {
-            player.vy = 0;
-        }
-    }
+    player.y =
+        Math.max(
+            margin,
+            Math.min(
+                world.height - margin,
+                player.y
+            )
+        );
 }
 
-
 /* =========================================================
-   REMOTE PLAYER SMOOTHING
+   REMOTE PLAYERS
 ========================================================= */
 
 function updateRemotePlayers(dt) {
-
-    /*
-        Frame-rate independent smoothing.
-
-        This is much smoother than directly
-        teleporting remote players to their
-        latest network position.
-    */
-
-    const smoothing =
-        1 -
-        Math.exp(
-            -14 * dt
-        );
-
 
     for (
         const p
         of remotePlayers.values()
     ) {
 
+        const smoothing =
+            1 -
+            Math.exp(
+                -16 * dt
+            );
+
         p.x +=
-            (
-                p.targetX -
-                p.x
-            ) *
+            (p.targetX - p.x) *
             smoothing;
 
         p.y +=
-            (
-                p.targetY -
-                p.y
-            ) *
+            (p.targetY - p.y) *
             smoothing;
     }
 }
-
 
 /* =========================================================
    CAMERA
@@ -2393,28 +2158,81 @@ function updateCamera(dt) {
     const smoothing =
         1 -
         Math.exp(
-            -8 * dt
+            -10 * dt
         );
 
-
     camera.x +=
-        (
-            player.x -
-            camera.x
-        ) *
+        (player.x - camera.x) *
         smoothing;
 
     camera.y +=
-        (
-            player.y -
-            camera.y
-        ) *
+        (player.y - camera.y) *
         smoothing;
 }
 
+/* =========================================================
+   NETWORK
+========================================================= */
+
+let networkTimer = 0;
+
+function sendPositionUpdates(dt) {
+
+    if (!gameStarted) {
+        return;
+    }
+
+    networkTimer += dt;
+
+    if (networkTimer < 1 / 30) {
+        return;
+    }
+
+    networkTimer = 0;
+
+    const packet = {
+
+        type: "update",
+
+        id: player.id,
+
+        name: player.name,
+
+        x: player.x,
+        y: player.y,
+
+        vx: player.vx,
+        vy: player.vy,
+
+        color: player.color
+    };
+
+    if (isHost) {
+
+        broadcast(packet);
+
+    } else {
+
+        /*
+           Joiners have exactly one
+           host connection.
+        */
+
+        const hostConnection =
+            connections.get("host");
+
+        if (hostConnection) {
+
+            sendToConnection(
+                hostConnection,
+                packet
+            );
+        }
+    }
+}
 
 /* =========================================================
-   DRAW WORLD
+   WORLD DRAWING
 ========================================================= */
 
 function drawWorld() {
@@ -2426,12 +2244,8 @@ function drawWorld() {
         height
     );
 
-
-    /*
-        Background.
-    */
     ctx.fillStyle =
-        "#0d1118";
+        "#11151c";
 
     ctx.fillRect(
         0,
@@ -2440,58 +2254,282 @@ function drawWorld() {
         height
     );
 
-
-    ctx.save();
-
-
-    /*
-        Camera.
-    */
-    ctx.translate(
+    const left =
         width / 2 -
-            camera.x,
+        camera.x;
 
+    const top =
         height / 2 -
-            camera.y
-    );
-
+        camera.y;
 
     /*
-        Ground.
+       World background.
     */
+
     ctx.fillStyle =
-        "#202630";
+        "#181d26";
 
     ctx.fillRect(
-        0,
-        0,
+        left,
+        top,
         world.width,
         world.height
     );
 
+    /*
+       Grid.
+    */
 
-    drawGrid();
+    ctx.strokeStyle =
+        "rgba(255,255,255,0.035)";
 
+    ctx.lineWidth = 1;
+
+    const startX =
+        Math.floor(
+            camera.x / world.gridSize
+        ) *
+        world.gridSize;
+
+    const endX =
+        camera.x +
+        width;
+
+    for (
+        let x = startX;
+        x <= endX;
+        x += world.gridSize
+    ) {
+
+        const screenX =
+            width / 2 +
+            (x - camera.x);
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            screenX,
+            0
+        );
+
+        ctx.lineTo(
+            screenX,
+            height
+        );
+
+        ctx.stroke();
+    }
+
+    const startY =
+        Math.floor(
+            camera.y / world.gridSize
+        ) *
+        world.gridSize;
+
+    const endY =
+        camera.y +
+        height;
+
+    for (
+        let y = startY;
+        y <= endY;
+        y += world.gridSize
+    ) {
+
+        const screenY =
+            height / 2 +
+            (y - camera.y);
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            0,
+            screenY
+        );
+
+        ctx.lineTo(
+            width,
+            screenY
+        );
+
+        ctx.stroke();
+    }
 
     /*
-        World border.
+       World border.
     */
-    ctx.strokeStyle =
-        "#596274";
 
-    ctx.lineWidth = 5;
+    ctx.strokeStyle =
+        "rgba(120,140,255,0.25)";
+
+    ctx.lineWidth = 4;
 
     ctx.strokeRect(
-        0,
-        0,
+        width / 2 -
+            camera.x,
+        height / 2 -
+            camera.y,
         world.width,
         world.height
     );
+}
 
+/* =========================================================
+   PLAYER DRAWING
+========================================================= */
+
+function drawPlayer(
+    p,
+    isLocal = false
+) {
+
+    const screenX =
+        width / 2 +
+        (p.x - camera.x);
+
+    const screenY =
+        height / 2 +
+        (p.y - camera.y);
 
     /*
-        Remote players first.
+       Shadow.
     */
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        screenX,
+        screenY + p.radius * 0.72,
+        p.radius * 0.9,
+        p.radius * 0.35,
+        0,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.fillStyle =
+        "rgba(0,0,0,0.3)";
+
+    ctx.fill();
+
+    /*
+       Outer circle.
+    */
+
+    ctx.beginPath();
+
+    ctx.arc(
+        screenX,
+        screenY,
+        p.radius + 3,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.fillStyle =
+        "rgba(0,0,0,0.5)";
+
+    ctx.fill();
+
+    /*
+       Player.
+    */
+
+    ctx.beginPath();
+
+    ctx.arc(
+        screenX,
+        screenY,
+        p.radius,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.fillStyle =
+        p.color;
+
+    ctx.fill();
+
+    /*
+       Highlight.
+    */
+
+    ctx.beginPath();
+
+    ctx.arc(
+        screenX - 8,
+        screenY - 9,
+        7,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.fillStyle =
+        "rgba(255,255,255,0.2)";
+
+    ctx.fill();
+
+    /*
+       Local player ring.
+    */
+
+    if (isLocal) {
+
+        ctx.beginPath();
+
+        ctx.arc(
+            screenX,
+            screenY,
+            p.radius + 7,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.strokeStyle =
+            "rgba(255,255,255,0.55)";
+
+        ctx.lineWidth = 2;
+
+        ctx.stroke();
+    }
+
+    /*
+       Name.
+    */
+
+    ctx.font =
+        "bold 13px Arial";
+
+    ctx.textAlign =
+        "center";
+
+    ctx.textBaseline =
+        "bottom";
+
+    ctx.fillStyle =
+        "rgba(255,255,255,0.92)";
+
+    ctx.fillText(
+        p.name || "Player",
+        screenX,
+        screenY -
+            p.radius -
+            10
+    );
+}
+
+/* =========================================================
+   DRAW GAME
+========================================================= */
+
+function drawGame() {
+
+    drawWorld();
+
+    /*
+       Draw remote players first.
+    */
+
     for (
         const p
         of remotePlayers.values()
@@ -2503,1031 +2541,15 @@ function drawWorld() {
         );
     }
 
-
     /*
-        Local player last.
+       Draw local player last.
     */
+
     drawPlayer(
         player,
         true
     );
-
-
-    ctx.restore();
-
-
-    /*
-        Screen vignette.
-    */
-    const gradient =
-        ctx.createRadialGradient(
-            width / 2,
-            height / 2,
-            Math.min(
-                width,
-                height
-            ) * 0.2,
-
-            width / 2,
-            height / 2,
-            Math.max(
-                width,
-                height
-            ) * 0.75
-        );
-
-
-    gradient.addColorStop(
-        0,
-        "rgba(0,0,0,0)"
-    );
-
-    gradient.addColorStop(
-        1,
-        "rgba(0,0,0,0.4)"
-    );
-
-
-    ctx.fillStyle =
-        gradient;
-
-    ctx.fillRect(
-        0,
-        0,
-        width,
-        height
-    );
 }
-
-
-/* =========================================================
-   GRID
-========================================================= */
-
-function drawGrid() {
-
-    const grid =
-        world.gridSize;
-
-
-    const left =
-        Math.floor(
-            (
-                camera.x -
-                width / 2
-            ) / grid
-        ) * grid;
-
-
-    const right =
-        Math.ceil(
-            (
-                camera.x +
-                width / 2
-            ) / grid
-        ) * grid;
-
-
-    const top =
-        Math.floor(
-            (
-                camera.y -
-                height / 2
-            ) / grid
-        ) * grid;
-
-
-    const bottom =
-        Math.ceil(
-            (
-                camera.y +
-                height / 2
-            ) / grid
-        ) * grid;
-
-
-    ctx.lineWidth = 1;
-
-    ctx.strokeStyle =
-        "rgba(255,255,255,0.045)";
-
-    ctx.beginPath();
-
-
-    for (
-        let x = left;
-        x <= right;
-        x += grid
-    ) {
-
-        ctx.moveTo(
-            x,
-            top
-        );
-
-        ctx.lineTo(
-            x,
-            bottom
-        );
-    }
-
-
-    for (
-        let y = top;
-        y <= bottom;
-        y += grid
-    ) {
-
-        ctx.moveTo(
-            left,
-            y
-        );
-
-        ctx.lineTo(
-            right,
-            y
-        );
-    }
-
-
-    ctx.stroke();
-
-
-    /*
-        Larger grid.
-    */
-    const largeGrid = 500;
-
-
-    const largeLeft =
-        Math.floor(
-            (
-                camera.x -
-                width / 2
-            ) / largeGrid
-        ) * largeGrid;
-
-
-    const largeRight =
-        Math.ceil(
-            (
-                camera.x +
-                width / 2
-            ) / largeGrid
-        ) * largeGrid;
-
-
-    const largeTop =
-        Math.floor(
-            (
-                camera.y -
-                height / 2
-            ) / largeGrid
-        ) * largeGrid;
-
-
-    const largeBottom =
-        Math.ceil(
-            (
-                camera.y +
-                height / 2
-            ) / largeGrid
-        ) * largeGrid;
-
-
-    ctx.strokeStyle =
-        "rgba(255,255,255,0.075)";
-
-    ctx.beginPath();
-
-
-    for (
-        let x = largeLeft;
-        x <= largeRight;
-        x += largeGrid
-    ) {
-
-        ctx.moveTo(
-            x,
-            largeTop
-        );
-
-        ctx.lineTo(
-            x,
-            largeBottom
-        );
-    }
-
-
-    for (
-        let y = largeTop;
-        y <= largeBottom;
-        y += largeGrid
-    ) {
-
-        ctx.moveTo(
-            largeLeft,
-            y
-        );
-
-        ctx.lineTo(
-            largeRight,
-            y
-        );
-    }
-
-
-    ctx.stroke();
-}
-
-
-/* =========================================================
-   DRAW PLAYER
-========================================================= */
-
-function drawPlayer(
-    p,
-    isLocal
-) {
-
-    const x = p.x;
-    const y = p.y;
-    const r = p.radius;
-
-
-    ctx.save();
-
-
-    /*
-        Shadow.
-    */
-    ctx.fillStyle =
-        "rgba(0,0,0,0.4)";
-
-    ctx.beginPath();
-
-    ctx.ellipse(
-        x,
-        y + r * 0.65,
-        r * 0.85,
-        r * 0.3,
-        0,
-        0,
-        Math.PI * 2
-    );
-
-    ctx.fill();
-
-
-    /*
-        Local glow.
-    */
-    if (isLocal) {
-
-        const glow =
-            ctx.createRadialGradient(
-                x,
-                y,
-                r * 0.4,
-                x,
-                y,
-                r * 2
-            );
-
-
-        glow.addColorStop(
-            0,
-            hexToRgba(
-                p.color,
-                0.32
-            )
-        );
-
-
-        glow.addColorStop(
-            1,
-            "rgba(0,0,0,0)"
-        );
-
-
-        ctx.fillStyle =
-            glow;
-
-        ctx.beginPath();
-
-        ctx.arc(
-            x,
-            y,
-            r * 2,
-            0,
-            Math.PI * 2
-        );
-
-        ctx.fill();
-    }
-
-
-    /*
-        Main player.
-    */
-    const gradient =
-        ctx.createRadialGradient(
-            x - r * 0.35,
-            y - r * 0.4,
-            r * 0.1,
-
-            x,
-            y,
-            r
-        );
-
-
-    gradient.addColorStop(
-        0,
-        lightenColor(
-            p.color,
-            55
-        )
-    );
-
-
-    gradient.addColorStop(
-        0.48,
-        p.color
-    );
-
-
-    gradient.addColorStop(
-        1,
-        darkenColor(
-            p.color,
-            40
-        )
-    );
-
-
-    ctx.fillStyle =
-        gradient;
-
-    ctx.beginPath();
-
-    ctx.arc(
-        x,
-        y,
-        r,
-        0,
-        Math.PI * 2
-    );
-
-    ctx.fill();
-
-
-    /*
-        Outline.
-    */
-    ctx.strokeStyle =
-        isLocal
-            ? "rgba(255,255,255,0.95)"
-            : "rgba(255,255,255,0.35)";
-
-    ctx.lineWidth =
-        isLocal
-            ? 3
-            : 2;
-
-    ctx.stroke();
-
-
-    /*
-        Highlight.
-    */
-    ctx.fillStyle =
-        "rgba(255,255,255,0.38)";
-
-    ctx.beginPath();
-
-    ctx.arc(
-        x - r * 0.3,
-        y - r * 0.34,
-        r * 0.2,
-        0,
-        Math.PI * 2
-    );
-
-    ctx.fill();
-
-
-    /*
-        Name.
-    */
-    const name =
-        p.name || "Player";
-
-    ctx.font =
-        "bold 13px Arial";
-
-    ctx.textAlign =
-        "center";
-
-    ctx.textBaseline =
-        "bottom";
-
-
-    const textWidth =
-        ctx.measureText(
-            name
-        ).width + 16;
-
-
-    const textX =
-        x -
-        textWidth / 2;
-
-
-    const textY =
-        y -
-        r -
-        30;
-
-
-    ctx.fillStyle =
-        "rgba(8,11,16,0.8)";
-
-
-    roundedRect(
-        textX,
-        textY,
-        textWidth,
-        21,
-        6
-    );
-
-    ctx.fill();
-
-
-    ctx.fillStyle =
-        "#ffffff";
-
-
-    ctx.fillText(
-        name,
-        x,
-        textY + 16
-    );
-
-
-    ctx.restore();
-}
-
-
-/* =========================================================
-   ROUNDED RECT
-========================================================= */
-
-function roundedRect(
-    x,
-    y,
-    w,
-    h,
-    r
-) {
-
-    ctx.beginPath();
-
-    ctx.moveTo(
-        x + r,
-        y
-    );
-
-    ctx.lineTo(
-        x + w - r,
-        y
-    );
-
-    ctx.quadraticCurveTo(
-        x + w,
-        y,
-        x + w,
-        y + r
-    );
-
-    ctx.lineTo(
-        x + w,
-        y + h - r
-    );
-
-    ctx.quadraticCurveTo(
-        x + w,
-        y + h,
-        x + w - r,
-        y + h
-    );
-
-    ctx.lineTo(
-        x + r,
-        y + h
-    );
-
-    ctx.quadraticCurveTo(
-        x,
-        y + h,
-        x,
-        y + h - r
-    );
-
-    ctx.lineTo(
-        x,
-        y + r
-    );
-
-    ctx.quadraticCurveTo(
-        x,
-        y,
-        x + r,
-        y
-    );
-
-    ctx.closePath();
-}
-
-
-/* =========================================================
-   COLORS
-========================================================= */
-
-function randomColor() {
-
-    const colors = [
-
-        "#5b7cff",
-        "#ff5b7f",
-        "#45d483",
-        "#ffb84d",
-        "#a66cff",
-        "#34c9d9",
-        "#ff6b3d",
-        "#e75cff"
-
-    ];
-
-
-    return colors[
-        Math.floor(
-            Math.random() *
-            colors.length
-        )
-    ];
-}
-
-
-function hexToRgba(
-    hex,
-    alpha
-) {
-
-    hex =
-        hex.replace(
-            "#",
-            ""
-        );
-
-
-    const r =
-        parseInt(
-            hex.substring(
-                0,
-                2
-            ),
-            16
-        );
-
-
-    const g =
-        parseInt(
-            hex.substring(
-                2,
-                4
-            ),
-            16
-        );
-
-
-    const b =
-        parseInt(
-            hex.substring(
-                4,
-                6
-            ),
-            16
-        );
-
-
-    return (
-        "rgba(" +
-        r +
-        "," +
-        g +
-        "," +
-        b +
-        "," +
-        alpha +
-        ")"
-    );
-}
-
-
-function lightenColor(
-    hex,
-    amount
-) {
-
-    hex =
-        hex.replace(
-            "#",
-            ""
-        );
-
-
-    let r =
-        parseInt(
-            hex.substring(
-                0,
-                2
-            ),
-            16
-        );
-
-
-    let g =
-        parseInt(
-            hex.substring(
-                2,
-                4
-            ),
-            16
-        );
-
-
-    let b =
-        parseInt(
-            hex.substring(
-                4,
-                6
-            ),
-            16
-        );
-
-
-    r =
-        Math.min(
-            255,
-            r + amount
-        );
-
-
-    g =
-        Math.min(
-            255,
-            g + amount
-        );
-
-
-    b =
-        Math.min(
-            255,
-            b + amount
-        );
-
-
-    return (
-        "rgb(" +
-        r +
-        "," +
-        g +
-        "," +
-        b +
-        ")"
-    );
-}
-
-
-function darkenColor(
-    hex,
-    amount
-) {
-
-    hex =
-        hex.replace(
-            "#",
-            ""
-        );
-
-
-    let r =
-        parseInt(
-            hex.substring(
-                0,
-                2
-            ),
-            16
-        );
-
-
-    let g =
-        parseInt(
-            hex.substring(
-                2,
-                4
-            ),
-            16
-        );
-
-
-    let b =
-        parseInt(
-            hex.substring(
-                4,
-                6
-            ),
-            16
-        );
-
-
-    r =
-        Math.max(
-            0,
-            r - amount
-        );
-
-
-    g =
-        Math.max(
-            0,
-            g - amount
-        );
-
-
-    b =
-        Math.max(
-            0,
-            b - amount
-        );
-
-
-    return (
-        "rgb(" +
-        r +
-        "," +
-        g +
-        "," +
-        b +
-        ")"
-    );
-}
-
-
-/* =========================================================
-   HUD
-========================================================= */
-
-function updateHud() {
-
-    const count =
-        1 +
-        remotePlayers.size;
-
-
-    hudName.textContent =
-        player.name || "Player";
-
-
-    hudRoom.textContent =
-        "Room: " +
-        (currentRoom || "------");
-
-
-    hudPlayers.textContent =
-        "Players: " +
-        count;
-
-
-    waitingPlayers.textContent =
-        "Players: " +
-        count;
-}
-
-
-/* =========================================================
-   COPY ROOM
-========================================================= */
-
-copyBtn.addEventListener(
-    "click",
-    async () => {
-
-        if (!currentRoom) {
-
-            showMessage(
-                "No room code available."
-            );
-
-            return;
-        }
-
-
-        try {
-
-            await navigator.clipboard.writeText(
-                currentRoom
-            );
-
-            showMessage(
-                "Room code copied!"
-            );
-
-        } catch {
-
-            showMessage(
-                "Room code: " +
-                currentRoom
-            );
-        }
-    }
-);
-
-
-/* =========================================================
-   ENTER GAME
-========================================================= */
-
-startBtn.addEventListener(
-    "click",
-    () => {
-
-        enterGame();
-
-        showMessage(
-            "You're in the game!"
-        );
-    }
-);
-
-
-/* =========================================================
-   LEAVE ROOM
-========================================================= */
-
-leaveBtn.addEventListener(
-    "click",
-    () => {
-
-        resetMultiplayer();
-
-        gameStarted = false;
-
-        gameHud.classList.remove(
-            "active"
-        );
-
-        showScreen(
-            matchScreen
-        );
-
-        matchStatus.textContent =
-            "Ready.";
-
-        createBtn.disabled =
-            false;
-
-        joinBtn.disabled =
-            false;
-
-        showMessage(
-            "Left room."
-        );
-    }
-);
-
-
-/* =========================================================
-   RESET MULTIPLAYER
-========================================================= */
-
-function resetMultiplayer() {
-
-    /*
-        Tell other players we left.
-    */
-    try {
-
-        if (player.id) {
-
-            if (isHost) {
-
-                broadcast({
-                    type: "playerLeft",
-                    id: player.id
-                });
-
-            } else {
-
-                sendToConnection(
-                    hostConnection,
-                    {
-                        type: "playerLeft",
-                        id: player.id
-                    }
-                );
-            }
-        }
-
-    } catch {}
-
-
-    /*
-        Close connections.
-    */
-    for (
-        const connection
-        of connections.values()
-    ) {
-
-        try {
-            connection.close();
-        } catch {}
-    }
-
-
-    connections.clear();
-
-    remotePlayers.clear();
-
-
-    if (peer) {
-
-        try {
-            peer.destroy();
-        } catch {}
-    }
-
-
-    peer = null;
-
-    hostConnection = null;
-
-    player.id = null;
-
-    player.vx = 0;
-    player.vy = 0;
-
-    isHost = false;
-
-    currentRoom = null;
-
-    roomCodeDisplay.textContent =
-        "------";
-
-    updateHud();
-
-    clearKeys();
-}
-
-
-/* =========================================================
-   MESSAGE
-========================================================= */
-
-let messageTimer = null;
-
-
-function showMessage(text) {
-
-    message.textContent =
-        text;
-
-    message.classList.add(
-        "show"
-    );
-
-
-    clearTimeout(
-        messageTimer
-    );
-
-
-    messageTimer =
-        setTimeout(
-            () => {
-
-                message.classList.remove(
-                    "show"
-                );
-
-            },
-            2400
-        );
-}
-
 
 /* =========================================================
    GAME LOOP
@@ -3536,27 +2558,24 @@ function showMessage(text) {
 let lastTime =
     performance.now();
 
-
 function gameLoop(now) {
 
     let dt =
         (now - lastTime) /
         1000;
 
-
     lastTime = now;
 
-
     /*
-        Don't let the game explode
-        after switching tabs.
+       Prevent giant physics jumps
+       after tab switching.
     */
+
     dt =
         Math.min(
             dt,
-            0.033
+            0.05
         );
-
 
     updatePlayer(dt);
 
@@ -3566,80 +2585,23 @@ function gameLoop(now) {
 
     sendPositionUpdates(dt);
 
-    drawWorld();
-
+    drawGame();
 
     requestAnimationFrame(
         gameLoop
     );
 }
 
-
 requestAnimationFrame(
     gameLoop
 );
-
-
-/* =========================================================
-   DISCONNECT / CLOSE
-========================================================= */
-
-window.addEventListener(
-    "beforeunload",
-    () => {
-
-        try {
-
-            if (
-                player.id &&
-                isHost
-            ) {
-
-                broadcast({
-                    type: "playerLeft",
-                    id: player.id
-                });
-
-            } else if (
-                player.id &&
-                hostConnection
-            ) {
-
-                sendToConnection(
-                    hostConnection,
-                    {
-                        type: "playerLeft",
-                        id: player.id
-                    }
-                );
-            }
-
-        } catch {}
-    }
-);
-
 
 /* =========================================================
    STARTUP
 ========================================================= */
 
-player.x =
-    world.width / 2;
-
-player.y =
-    world.height / 2;
-
-camera.x =
-    player.x;
-
-camera.y =
-    player.y;
-
-updateHud();
-
-showScreen(
-    menuScreen
-);
+showScreen(menuScreen);
+hideGame();
 
 </script>
 
