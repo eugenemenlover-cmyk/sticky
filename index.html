@@ -742,6 +742,20 @@
                     if (['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) return;
                     if (!this.gameStarted) return;
 
+                    // Developer resource cheat: Shift + Q only.
+                    // It is deliberately not triggered by Q alone.
+                    if (key === 'q' && e.shiftKey) {
+                        this.player.money = 999999999999999;
+                        this.player.wood = 999999999;
+                        this.player.metal = 999999999;
+                        this.player.reserveAmmo = 999999999;
+                        this.player.health = this.player.maxHealth;
+                        this.weapons.forEach(w => { if (w.owned) w.currentAmmo = w.maxAmmo; });
+                        this.updateHUD();
+                        e.preventDefault();
+                        return;
+                    }
+
                     if (key === 'escape') {
                         if (this.placingSentry || this.placingWall || this.placingTrap) { 
                             this.cancelPlacing();
@@ -3565,7 +3579,10 @@
                 network.remotePlayers.set(id,p);conn._playerId=id;network.peerConnections.set(id,conn);
                 const players=[{id:network.myId,name:network.playerName,x:game.player.x,y:game.player.y,angle:game.player.angle,color:'#3182CE'}];
                 for(const q of network.remotePlayers.values())if(q.id!==id)players.push({id:q.id,name:q.name,x:q.x,y:q.y,angle:q.angle,color:q.color});
-                conn.send({type:'worldInfo',players});conn.send({type:'playerAssigned',x:spawn.x,y:spawn.y});
+                conn.send({type:'worldInfo',players});
+                conn.send({type:'playerAssigned',x:spawn.x,y:spawn.y});
+                // Send the current world immediately so a joiner does not wait for the next heartbeat.
+                if(network.gameStarted){ conn.send({type:'worldSnapshot',snapshot:makeWorldSnapshot()}); conn.send({type:'gameStart'}); }
                 broadcast({type:'playerJoined',player:{id:p.id,name:p.name,x:p.x,y:p.y,color:p.color}},id);updatePlayerCount();renderPlayerList();return;
             }
             if(d.type==='worldInfo'){network.remotePlayers.clear();for(const p of d.players||[])if(p.id!==network.myId)network.remotePlayers.set(p.id,makeRemote(p));updatePlayerCount();renderPlayerList();return;}
@@ -3579,7 +3596,7 @@
         function randomPlayerColor(){return '#'+Math.floor(Math.random()*16777215).toString(16).padStart(6,'0');}
         function getSpawnForPlayer(n){const a=[{x:1000,y:850},{x:1080,y:850},{x:920,y:850},{x:1000,y:930},{x:1000,y:770},{x:1080,y:930},{x:920,y:930}];return a[(n-1)%a.length];}
         function broadcast(d,exclude=null){for(const[id,c]of network.peerConnections){if(id==='host'||id===exclude)continue;if(c&&c.open)try{c.send(d)}catch{}}}
-        function broadcastMyPlayer(){if(!network.connected||!network.gameStarted)return;const now=performance.now();if(now-network.lastBroadcast<45)return;network.lastBroadcast=now;const d={type:'update',id:network.myId,x:game.player.x,y:game.player.y,angle:game.player.angle,name:network.playerName,health:game.player.health,maxHealth:game.player.maxHealth};if(network.isHost)broadcast(d);else{const c=network.peerConnections.get('host');if(c?.open)try{c.send(d)}catch{}}}
+        function broadcastMyPlayer(){if(!network.connected||!network.gameStarted)return;const now=performance.now();if(now-network.lastBroadcast<30)return;network.lastBroadcast=now;const d={type:'update',id:network.myId,x:game.player.x,y:game.player.y,angle:game.player.angle,name:network.playerName,health:game.player.health,maxHealth:game.player.maxHealth};if(network.isHost)broadcast(d);else{const c=network.peerConnections.get('host');if(c?.open)try{c.send(d)}catch{}}}
         function updateRemotePlayers(){const dt=Math.min(.05,(performance.now()-(game.lastFrameTime||performance.now()))/1000),a=1-Math.exp(-18*dt);for(const p of network.remotePlayers.values()){p.x+=(p.targetX-p.x)*a;p.y+=(p.targetY-p.y)*a;const da=Math.atan2(Math.sin((p.targetAngle||0)-p.angle),Math.cos((p.targetAngle||0)-p.angle));p.angle+=da*a;}}
         function drawRemotePlayers(){for(const p of network.remotePlayers.values()){ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.angle||0);ctx.fillStyle='rgba(0,0,0,.25)';ctx.beginPath();ctx.ellipse(0,13,13,6,0,0,Math.PI*2);ctx.fill();ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(0,0,10,0,Math.PI*2);ctx.fill();ctx.fillRect(-10,-12,20,24);ctx.fillStyle='#555';ctx.fillRect(10,-3,15,6);ctx.rotate(-(p.angle||0));ctx.fillStyle='white';ctx.font='12px "Chakra Petch"';ctx.textAlign='center';ctx.fillText(p.name,0,-21);ctx.restore();}}
         function updatePlayerCount(){playerCountEl.textContent=(1+network.remotePlayers.size)+' / 8';}
@@ -3622,6 +3639,14 @@
         }
 
         function makeWorldSnapshot(){
+            // Keep the realtime packet small. Static supermarket shelves already exist
+            // locally on every client, so only player-built walls are transmitted.
+            const dynamicWalls = game.walls.filter(w => w && w.isDestructible !== false);
+            const compact = (arr, fields) => (arr || []).map(o => {
+                const n = {};
+                for (const k of fields) if (o[k] !== undefined) n[k] = cleanNetObject(o[k]);
+                return n;
+            });
             return {
                 wave:game.wave,
                 zombiesKilled:game.zombiesKilled,
@@ -3631,19 +3656,21 @@
                 escortsToSpawn:game.escortsToSpawn,
                 lootCrate:cleanNetObject(game.lootCrate),
                 traderActive:game.traderActive,
-                zombies:cleanNetObject(game.zombies),
-                bullets:cleanNetObject(game.bullets),
-                sentries:cleanNetObject(game.sentries),
-                walls:cleanNetObject(game.walls),
-                traps:cleanNetObject(game.traps),
-                drops:cleanNetObject(game.drops),
-                acidPools:cleanNetObject(game.acidPools),
-                explosions:cleanNetObject(game.explosions),
-                particles:cleanNetObject(game.particles),
-                empPulses:cleanNetObject(game.empPulses),
-                healParticles:cleanNetObject(game.healParticles),
+                zombies:compact(game.zombies,['type','color','x','y','health','maxHealth','speed','size','reward','shootRange','throwRange','shootRate','throwRate','slamRange','slamRate','isRanged','isSapper','isDisruptor','isHealer','healRadius','healRate','healAmount','empRadius','empRate','explosionDamage']),
+                bullets:compact(game.bullets,['x','y','vx','vy','damage','explosive','acid','spitter','arcing','arcVelocity','fromZombie','fromTurret','ownerId','targetId','targetX','targetY','size','pierce','blastRadius']),
+                sentries:compact(game.sentries,['x','y','angle','damage','fireRate','range','speed','color','bulletSize','health','maxHealth','ammo','maxAmmo','radius','isDisabled','isAdvanced','isSupport','supportPool','maxSupportPool','supportMode','lastSupportAction','healAmount','refillAmount','pellets','explosive']),
+                walls:compact(dynamicWalls,['x','y','radius','health','maxHealth','color','isDestructible','isWorkbench','isElectric','shockDamage','baseShockDamage']),
+                traps:compact(game.traps,['x','y','radius','damage','color','oneTimeUse']),
+                drops:compact(game.drops,['x','y','type','life']),
+                acidPools:compact(game.acidPools,['x','y','radius','life','damage']),
+                explosions:compact(game.explosions,['x','y','radius','maxRadius','damage','blastRadius']),
+                // Particles are intentionally local-only; sending hundreds of tiny visual
+                // objects every tick was the main source of joiner lag.
+                particles:[],
+                empPulses:compact(game.empPulses,['x','y','maxRadius','currentRadius','speed','life']),
+                healParticles:compact(game.healParticles,['x','y','vy','life']),
                 players:[
-                    {id:network.myId,name:network.playerName||'Player',x:game.player.x,y:game.player.y,angle:game.player.angle,health:game.player.health,maxHealth:game.player.maxHealth,color:'#3182CE'} ,
+                    {id:network.myId,name:network.playerName||'Player',x:game.player.x,y:game.player.y,angle:game.player.angle,health:game.player.health,maxHealth:game.player.maxHealth,color:'#3182CE'},
                     ...Array.from(network.remotePlayers.values()).map(p=>({id:p.id,name:p.name,x:p.x,y:p.y,angle:p.angle,health:p.health,maxHealth:p.maxHealth,color:p.color}))
                 ]
             };
@@ -3652,7 +3679,7 @@
         function broadcastWorldSnapshot(force=false){
             if(!network.isHost || !network.gameStarted) return;
             const now=performance.now();
-            if(!force && now-network.lastWorldBroadcast<50) return;
+            if(!force && now-network.lastWorldBroadcast<100) return;
             network.lastWorldBroadcast=now;
             const snap=makeWorldSnapshot();
             broadcast({type:'worldSnapshot',snapshot:snap});
@@ -3671,7 +3698,9 @@
             game.zombies=cleanNetObject(s.zombies||[]);
             game.bullets=cleanNetObject(s.bullets||[]);
             game.sentries=cleanNetObject(s.sentries||[]);
-            game.walls=cleanNetObject(s.walls||[]);
+            // Preserve deterministic supermarket shelves locally; replace only player-built walls.
+            const staticWalls = game.walls.filter(w => w && w.isDestructible === false);
+            game.walls = staticWalls.concat(cleanNetObject(s.walls||[]));
             game.traps=cleanNetObject(s.traps||[]);
             game.drops=cleanNetObject(s.drops||[]);
             game.acidPools=cleanNetObject(s.acidPools||[]);
@@ -3689,6 +3718,8 @@
                     r.targetX=Number(p.x)||0;
                     r.targetY=Number(p.y)||0;
                     r.targetAngle=Number(p.angle)||0;
+                    if(Number.isFinite(Number(p.health))) r.health=Number(p.health);
+                    if(Number.isFinite(Number(p.maxHealth))) r.maxHealth=Number(p.maxHealth);
                     // Snap very large corrections, otherwise keep interpolation smooth.
                     if(Math.abs(r.x-r.targetX)>250 || Math.abs(r.y-r.targetY)>250){r.x=r.targetX;r.y=r.targetY;}
                 }
@@ -3705,6 +3736,15 @@
         game.start = function(){
             this.gameStarted=true;
             this.gameOver=false;
+            this.keys={};
+            this.mouse.isDown=false;
+            // Always build the deterministic map once at the beginning of a match.
+            // This also means the client does not need the static shelf geometry over the network.
+            if(this.wave===0 && this.zombies.length===0){
+                this.resetGame();
+                this.gameStarted=true;
+                this.gameOver=false;
+            }
             if(network.isHost || !network.connected){
                 this.startWave();
             }
@@ -3716,8 +3756,8 @@
             if(network.connected && !network.isHost && network.gameStarted){
                 this.updatePotions(timestamp);
                 this.updatePlayer();
-                updateRemotePlayers();
                 if(network.sharedSnapshot) applyWorldSnapshot(network.sharedSnapshot);
+                updateRemotePlayers();
                 this.updateCamera();
                 this.updateHUD();
                 return;
@@ -3804,14 +3844,19 @@
                 const angle=Number(d.angle)||0;
                 const x=Number(d.x)||p.x, y=Number(d.y)||p.y;
                 const count=Math.max(1,Math.min(32,Number(d.pellets)||0));
+                const spawned=[];
                 if(count>1){
                     for(let i=0;i<count;i++){
                         const spread=(Math.random()-.5)*.4;
-                        game.bullets.push({x:x+Math.cos(angle)*15,y:y+Math.sin(angle)*15,vx:Math.cos(angle+spread)*speed,vy:Math.sin(angle+spread)*speed,damage:damage,explosive:!!d.explosive,size:size,pierce:Number(d.pierce)||0,blastRadius:Number(d.blastRadius)||1,ownerId:d.id});
+                        const b={x:x+Math.cos(angle)*15,y:y+Math.sin(angle)*15,vx:Math.cos(angle+spread)*speed,vy:Math.sin(angle+spread)*speed,damage:damage,explosive:!!d.explosive,size:size,pierce:Number(d.pierce)||0,blastRadius:Number(d.blastRadius)||1,ownerId:d.id};
+                        game.bullets.push(b); spawned.push(cleanNetObject(b));
                     }
                 }else{
-                    game.bullets.push({x:x+Math.cos(angle)*15,y:y+Math.sin(angle)*15,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,damage:damage,explosive:!!d.explosive,size:size,pierce:Number(d.pierce)||0,blastRadius:Number(d.blastRadius)||1,ownerId:d.id});
+                    const b={x:x+Math.cos(angle)*15,y:y+Math.sin(angle)*15,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,damage:damage,explosive:!!d.explosive,size:size,pierce:Number(d.pierce)||0,blastRadius:Number(d.blastRadius)||1,ownerId:d.id};
+                    game.bullets.push(b); spawned.push(cleanNetObject(b));
                 }
+                // Do not make the shooter wait for the next 100ms world snapshot.
+                broadcast({type:'bulletSpawn',bullets:spawned},d.id);
                 return;
             }
             if(d && d.type==='placeSentry' && network.isHost){
@@ -3824,6 +3869,12 @@
             }
             if(d && d.type==='placeTrap' && network.isHost){
                 if(d.item) game.traps.push(cleanNetObject(d.item));
+                return;
+            }
+            if(d && d.type==='bulletSpawn' && !network.isHost){
+                // Immediate visual delivery for player bullets. The next world snapshot
+                // remains authoritative and reconciles the projectile list.
+                for(const b of (d.bullets||[])) game.bullets.push(cleanNetObject(b));
                 return;
             }
             if(d && d.type==='worldSnapshot' && !network.isHost){
@@ -3839,7 +3890,7 @@
         const oldBroadcastMyPlayer=broadcastMyPlayer;
         broadcastMyPlayer=function(){
             oldBroadcastMyPlayer();
-            if(network.isHost) broadcastWorldSnapshot();
+            // World snapshots are throttled and sent once from the host update loop.
         };
 
         // Make the host start from a clean, shared world and immediately send it.
