@@ -1,0 +1,1791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Circle Multiplayer</title>
+
+<!-- PeerJS lets the HTML connect players together without your own backend -->
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+<style>
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: Arial, Helvetica, sans-serif;
+        background: #10131a;
+    }
+
+    canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: #161a22;
+    }
+
+    #ui {
+        position: fixed;
+        top: 18px;
+        left: 18px;
+        z-index: 10;
+        color: white;
+        user-select: none;
+    }
+
+    .panel {
+        background: rgba(15, 18, 25, 0.88);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 14px;
+        padding: 15px;
+        width: 270px;
+        box-shadow: 0 12px 35px rgba(0,0,0,0.35);
+        backdrop-filter: blur(10px);
+    }
+
+    .title {
+        font-size: 20px;
+        font-weight: 800;
+        margin-bottom: 5px;
+    }
+
+    .subtitle {
+        color: #9da6b8;
+        font-size: 12px;
+        margin-bottom: 14px;
+    }
+
+    input {
+        width: 100%;
+        padding: 10px 11px;
+        border-radius: 9px;
+        border: 1px solid #343b49;
+        outline: none;
+        background: #202531;
+        color: white;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+
+    input:focus {
+        border-color: #6d8cff;
+    }
+
+    button {
+        width: 100%;
+        border: 0;
+        border-radius: 9px;
+        padding: 10px;
+        margin-bottom: 7px;
+        color: white;
+        background: #526dff;
+        font-weight: 700;
+        cursor: pointer;
+        transition: 0.15s;
+    }
+
+    button:hover {
+        background: #647cff;
+        transform: translateY(-1px);
+    }
+
+    button.secondary {
+        background: #292f3c;
+    }
+
+    button.secondary:hover {
+        background: #343c4b;
+    }
+
+    #roomCode {
+        background: #191d26;
+        border: 1px solid #343b49;
+        border-radius: 9px;
+        padding: 10px;
+        margin: 5px 0 10px;
+        text-align: center;
+        font-size: 20px;
+        letter-spacing: 3px;
+        font-weight: 800;
+        color: #8fa3ff;
+    }
+
+    #status {
+        font-size: 12px;
+        color: #9da6b8;
+        margin-top: 5px;
+        line-height: 1.4;
+    }
+
+    #players {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(255,255,255,0.08);
+        font-size: 12px;
+        color: #c5cad5;
+    }
+
+    #controls {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        z-index: 10;
+        padding: 11px 15px;
+        border-radius: 12px;
+        color: #bfc6d4;
+        font-size: 13px;
+        background: rgba(15,18,25,0.82);
+        border: 1px solid rgba(255,255,255,0.1);
+        backdrop-filter: blur(8px);
+    }
+
+    #controls b {
+        color: white;
+    }
+
+    #message {
+        position: fixed;
+        left: 50%;
+        top: 22px;
+        transform: translateX(-50%);
+        z-index: 20;
+        padding: 10px 18px;
+        border-radius: 10px;
+        background: rgba(15,18,25,0.9);
+        color: white;
+        font-size: 13px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s;
+    }
+
+    @media (max-width: 600px) {
+        #ui {
+            top: 10px;
+            left: 10px;
+        }
+
+        .panel {
+            width: 235px;
+        }
+
+        #controls {
+            right: 10px;
+            bottom: 10px;
+            font-size: 11px;
+        }
+    }
+</style>
+</head>
+
+<body>
+
+<canvas id="game"></canvas>
+
+<div id="ui">
+    <div class="panel">
+        <div class="title">Circle World</div>
+        <div class="subtitle">Multiplayer flat-world game</div>
+
+        <input id="nameInput" maxlength="16" placeholder="Your name">
+
+        <button id="createBtn">Create Room</button>
+
+        <input id="roomInput" maxlength="30" placeholder="Enter room code">
+        <button id="joinBtn" class="secondary">Join Room</button>
+
+        <div id="roomCode">----</div>
+
+        <button id="copyBtn" class="secondary">Copy Room Code</button>
+
+        <div id="status">
+            Not connected.
+        </div>
+
+        <div id="players">
+            Players: 1
+        </div>
+    </div>
+</div>
+
+<div id="controls">
+    <b>W A S D</b> to move &nbsp; • &nbsp;
+    <b>Shift</b> to sprint
+</div>
+
+<div id="message"></div>
+
+<script>
+/* =========================================================
+   BASIC SETUP
+========================================================= */
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const nameInput = document.getElementById("nameInput");
+const roomInput = document.getElementById("roomInput");
+const createBtn = document.getElementById("createBtn");
+const joinBtn = document.getElementById("joinBtn");
+const copyBtn = document.getElementById("copyBtn");
+const roomCodeDisplay = document.getElementById("roomCode");
+const statusDisplay = document.getElementById("status");
+const playersDisplay = document.getElementById("players");
+const message = document.getElementById("message");
+
+let width = window.innerWidth;
+let height = window.innerHeight;
+
+function resize() {
+    width = window.innerWidth;
+    height = window.innerHeight;
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+
+    canvas.style.width = width + "px";
+    canvas.style.height = height + "px";
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+window.addEventListener("resize", resize);
+resize();
+
+/* =========================================================
+   GAME WORLD
+========================================================= */
+
+const world = {
+    width: 5000,
+    height: 5000,
+    groundSize: 5000,
+    gridSize: 100
+};
+
+const player = {
+    id: null,
+    name: "Player",
+    x: world.width / 2,
+    y: world.height / 2,
+    vx: 0,
+    vy: 0,
+
+    radius: 28,
+
+    speed: 330,
+    sprintSpeed: 520,
+
+    color: randomColor(),
+
+    connected: true
+};
+
+const remotePlayers = new Map();
+
+let camera = {
+    x: player.x,
+    y: player.y
+};
+
+/* =========================================================
+   INPUT
+========================================================= */
+
+const keys = {};
+
+window.addEventListener("keydown", e => {
+    const key = e.key.toLowerCase();
+
+    if (
+        key === "w" ||
+        key === "a" ||
+        key === "s" ||
+        key === "d" ||
+        key === "shift"
+    ) {
+        e.preventDefault();
+    }
+
+    keys[key] = true;
+});
+
+window.addEventListener("keyup", e => {
+    keys[e.key.toLowerCase()] = false;
+});
+
+window.addEventListener("blur", () => {
+    for (const key in keys) {
+        keys[key] = false;
+    }
+});
+
+/* =========================================================
+   MULTIPLAYER
+========================================================= */
+
+let peer = null;
+let isHost = false;
+let currentRoom = null;
+
+const connections = new Map();
+
+function generateRoomCode() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "";
+
+    for (let i = 0; i < 6; i++) {
+        code += chars[Math.floor(Math.random() * chars.length)];
+    }
+
+    return code;
+}
+
+function makePeerId(roomCode) {
+    return "circle-world-" + roomCode.toLowerCase();
+}
+
+function initializePeer(peerId, callback) {
+    if (peer) {
+        try {
+            peer.destroy();
+        } catch {}
+    }
+
+    peer = new Peer(peerId);
+
+    peer.on("open", id => {
+        player.id = id;
+
+        if (callback) {
+            callback();
+        }
+    });
+
+    peer.on("error", err => {
+        console.error(err);
+
+        if (err.type === "unavailable-id") {
+            showMessage("That room already exists.");
+            statusDisplay.textContent = "Room already exists.";
+        } else if (err.type === "peer-unavailable") {
+            showMessage("Room not found.");
+            statusDisplay.textContent = "Room not found.";
+        } else {
+            showMessage("Connection error.");
+            statusDisplay.textContent = "Connection error: " + err.type;
+        }
+    });
+
+    peer.on("disconnected", () => {
+        statusDisplay.textContent = "Disconnected from multiplayer.";
+    });
+}
+
+/* =========================================================
+   CREATE ROOM
+========================================================= */
+
+createBtn.addEventListener("click", () => {
+
+    player.name =
+        nameInput.value.trim().slice(0, 16) ||
+        "Player";
+
+    const code = generateRoomCode();
+
+    isHost = true;
+    currentRoom = code;
+
+    roomCodeDisplay.textContent = code;
+
+    statusDisplay.textContent =
+        "Creating room...";
+
+    initializePeer(makePeerId(code), () => {
+
+        statusDisplay.textContent =
+            "Room ready. Give your friend the code.";
+
+        showMessage("Room created: " + code);
+    });
+});
+
+/* =========================================================
+   JOIN ROOM
+========================================================= */
+
+joinBtn.addEventListener("click", () => {
+
+    const code =
+        roomInput.value
+            .trim()
+            .toUpperCase();
+
+    if (!code) {
+        showMessage("Enter a room code.");
+        return;
+    }
+
+    player.name =
+        nameInput.value.trim().slice(0, 16) ||
+        "Player";
+
+    isHost = false;
+    currentRoom = code;
+
+    roomCodeDisplay.textContent = code;
+
+    statusDisplay.textContent =
+        "Connecting to room...";
+
+    /*
+        Give every joining player their own random PeerJS ID.
+        They connect to the host's predictable room ID.
+    */
+
+    const ownId =
+        "circle-player-" +
+        Math.random()
+            .toString(36)
+            .slice(2, 12);
+
+    initializePeer(ownId, () => {
+
+        const hostId =
+            makePeerId(code);
+
+        connectToHost(hostId);
+    });
+});
+
+/* =========================================================
+   CONNECT TO HOST
+========================================================= */
+
+function connectToHost(hostId) {
+
+    const connection =
+        peer.connect(hostId, {
+            reliable: true
+        });
+
+    setupConnection(connection, true);
+
+    connection.on("open", () => {
+
+        statusDisplay.textContent =
+            "Connected to room.";
+
+        sendToConnection(connection, {
+            type: "hello",
+            id: player.id,
+            name: player.name,
+            x: player.x,
+            y: player.y,
+            color: player.color
+        });
+
+        showMessage("Joined room!");
+    });
+}
+
+/* =========================================================
+   HOST ACCEPTS PLAYERS
+========================================================= */
+
+if (true) {
+
+    /*
+       This listener exists globally.
+       When someone creates the room with our PeerJS ID,
+       PeerJS sends the connection here.
+    */
+
+    window.addEventListener("load", () => {
+
+        const oldPeerSetup = setInterval(() => {
+
+            if (!peer) return;
+
+            clearInterval(oldPeerSetup);
+
+            peer.on("connection", connection => {
+
+                if (!isHost) {
+                    return;
+                }
+
+                setupConnection(connection, false);
+
+                connection.on("open", () => {
+
+                    sendToConnection(connection, {
+                        type: "worldInfo",
+                        players: getPlayerList()
+                    });
+
+                    showMessage("A player joined!");
+                });
+            });
+
+        }, 100);
+    });
+}
+
+/* =========================================================
+   CONNECTION SETUP
+========================================================= */
+
+function setupConnection(connection, isJoining) {
+
+    connection.on("data", data => {
+
+        if (!data || !data.type) {
+            return;
+        }
+
+        /* -------------------------
+           HELLO
+        ------------------------- */
+
+        if (data.type === "hello") {
+
+            if (!data.id) return;
+
+            remotePlayers.set(data.id, {
+                id: data.id,
+                name: data.name || "Player",
+                x: data.x || 0,
+                y: data.y || 0,
+                vx: 0,
+                vy: 0,
+                color: data.color || randomColor(),
+                targetX: data.x || 0,
+                targetY: data.y || 0,
+                radius: 28
+            });
+
+            connections.set(data.id, connection);
+
+            if (isHost) {
+
+                /*
+                    Tell the new player about everybody
+                    already in the room.
+                */
+
+                for (const p of remotePlayers.values()) {
+
+                    if (p.id === data.id) {
+                        continue;
+                    }
+
+                    sendToConnection(connection, {
+                        type: "playerJoined",
+                        player: {
+                            id: p.id,
+                            name: p.name,
+                            x: p.x,
+                            y: p.y,
+                            color: p.color
+                        }
+                    });
+                }
+
+                /*
+                    Tell existing players about new player.
+                */
+
+                broadcast({
+                    type: "playerJoined",
+                    player: {
+                        id: data.id,
+                        name: data.name,
+                        x: data.x,
+                        y: data.y,
+                        color: data.color
+                    }
+                }, data.id);
+            }
+
+            updatePlayerCount();
+        }
+
+        /* -------------------------
+           WORLD INFO
+        ------------------------- */
+
+        if (data.type === "worldInfo") {
+
+            if (Array.isArray(data.players)) {
+
+                for (const p of data.players) {
+
+                    if (p.id === player.id) {
+                        continue;
+                    }
+
+                    remotePlayers.set(p.id, {
+                        ...p,
+                        targetX: p.x,
+                        targetY: p.y,
+                        radius: 28
+                    });
+                }
+
+                updatePlayerCount();
+            }
+        }
+
+        /* -------------------------
+           PLAYER JOINED
+        ------------------------- */
+
+        if (data.type === "playerJoined") {
+
+            const p = data.player;
+
+            if (!p || p.id === player.id) {
+                return;
+            }
+
+            remotePlayers.set(p.id, {
+                ...p,
+                targetX: p.x,
+                targetY: p.y,
+                radius: 28
+            });
+
+            updatePlayerCount();
+        }
+
+        /* -------------------------
+           POSITION UPDATE
+        ------------------------- */
+
+        if (data.type === "update") {
+
+            if (!data.id || data.id === player.id) {
+                return;
+            }
+
+            let p = remotePlayers.get(data.id);
+
+            if (!p) {
+
+                p = {
+                    id: data.id,
+                    name: data.name || "Player",
+                    x: data.x,
+                    y: data.y,
+                    targetX: data.x,
+                    targetY: data.y,
+                    vx: data.vx || 0,
+                    vy: data.vy || 0,
+                    color: data.color || randomColor(),
+                    radius: 28
+                };
+
+                remotePlayers.set(data.id, p);
+            }
+
+            p.targetX = data.x;
+            p.targetY = data.y;
+            p.vx = data.vx || 0;
+            p.vy = data.vy || 0;
+            p.name = data.name || p.name;
+            p.color = data.color || p.color;
+        }
+
+        /* -------------------------
+           PLAYER LEFT
+        ------------------------- */
+
+        if (data.type === "playerLeft") {
+
+            remotePlayers.delete(data.id);
+            connections.delete(data.id);
+
+            updatePlayerCount();
+        }
+    });
+
+    connection.on("close", () => {
+
+        /*
+            Remove a player if their connection closes.
+        */
+
+        for (const [id, c] of connections) {
+
+            if (c === connection) {
+
+                remotePlayers.delete(id);
+                connections.delete(id);
+
+                updatePlayerCount();
+            }
+        }
+
+        updatePlayerCount();
+    });
+
+    connection.on("error", err => {
+        console.error("Connection error:", err);
+    });
+}
+
+/* =========================================================
+   PLAYER LIST
+========================================================= */
+
+function getPlayerList() {
+
+    const list = [{
+        id: player.id,
+        name: player.name,
+        x: player.x,
+        y: player.y,
+        color: player.color
+    }];
+
+    for (const p of remotePlayers.values()) {
+        list.push({
+            id: p.id,
+            name: p.name,
+            x: p.x,
+            y: p.y,
+            color: p.color
+        });
+    }
+
+    return list;
+}
+
+/* =========================================================
+   SEND DATA
+========================================================= */
+
+function sendToConnection(connection, data) {
+
+    if (
+        connection &&
+        connection.open
+    ) {
+        try {
+            connection.send(data);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+}
+
+function broadcast(data, exceptId = null) {
+
+    for (const [id, connection] of connections) {
+
+        if (id === exceptId) {
+            continue;
+        }
+
+        sendToConnection(connection, data);
+    }
+}
+
+/* =========================================================
+   POSITION NETWORK UPDATE
+========================================================= */
+
+let networkTimer = 0;
+
+function sendPositionUpdates(dt) {
+
+    networkTimer += dt;
+
+    /*
+       20 network updates per second.
+    */
+
+    if (networkTimer < 0.05) {
+        return;
+    }
+
+    networkTimer = 0;
+
+    const packet = {
+        type: "update",
+        id: player.id,
+        name: player.name,
+        x: player.x,
+        y: player.y,
+        vx: player.vx,
+        vy: player.vy,
+        color: player.color
+    };
+
+    if (isHost) {
+
+        broadcast(packet);
+
+    } else {
+
+        /*
+            Find host connection.
+        */
+
+        for (const connection of connections.values()) {
+
+            sendToConnection(connection, packet);
+
+            break;
+        }
+    }
+}
+
+/* =========================================================
+   PHYSICS
+========================================================= */
+
+function updatePlayer(dt) {
+
+    let dx = 0;
+    let dy = 0;
+
+    if (keys["w"]) {
+        dy -= 1;
+    }
+
+    if (keys["s"]) {
+        dy += 1;
+    }
+
+    if (keys["a"]) {
+        dx -= 1;
+    }
+
+    if (keys["d"]) {
+        dx += 1;
+    }
+
+    /*
+       Normalize diagonal movement.
+    */
+
+    const length =
+        Math.sqrt(dx * dx + dy * dy);
+
+    if (length > 0) {
+
+        dx /= length;
+        dy /= length;
+    }
+
+    const speed =
+        keys["shift"]
+            ? player.sprintSpeed
+            : player.speed;
+
+    const acceleration = 2200;
+
+    if (length > 0) {
+
+        player.vx +=
+            dx *
+            acceleration *
+            dt;
+
+        player.vy +=
+            dy *
+            acceleration *
+            dt;
+    } else {
+
+        /*
+           Friction.
+        */
+
+        const friction =
+            Math.pow(0.001, dt);
+
+        player.vx *= friction;
+        player.vy *= friction;
+    }
+
+    /*
+       Cap velocity.
+    */
+
+    const velocity =
+        Math.sqrt(
+            player.vx * player.vx +
+            player.vy * player.vy
+        );
+
+    if (velocity > speed) {
+
+        const factor =
+            speed / velocity;
+
+        player.vx *= factor;
+        player.vy *= factor;
+    }
+
+    player.x += player.vx * dt;
+    player.y += player.vy * dt;
+
+    /*
+       Keep player inside the world.
+    */
+
+    const margin = player.radius;
+
+    player.x =
+        Math.max(
+            margin,
+            Math.min(
+                world.width - margin,
+                player.x
+            )
+        );
+
+    player.y =
+        Math.max(
+            margin,
+            Math.min(
+                world.height - margin,
+                player.y
+            )
+        );
+}
+
+/* =========================================================
+   REMOTE PLAYER SMOOTHING
+========================================================= */
+
+function updateRemotePlayers(dt) {
+
+    for (const p of remotePlayers.values()) {
+
+        /*
+            Smooth network movement.
+        */
+
+        const smoothing =
+            Math.min(1, dt * 14);
+
+        p.x +=
+            (p.targetX - p.x) *
+            smoothing;
+
+        p.y +=
+            (p.targetY - p.y) *
+            smoothing;
+    }
+}
+
+/* =========================================================
+   CAMERA
+========================================================= */
+
+function updateCamera(dt) {
+
+    const smoothing =
+        Math.min(1, dt * 7);
+
+    camera.x +=
+        (player.x - camera.x) *
+        smoothing;
+
+    camera.y +=
+        (player.y - camera.y) *
+        smoothing;
+}
+
+/* =========================================================
+   DRAW WORLD
+========================================================= */
+
+function drawWorld() {
+
+    ctx.clearRect(
+        0,
+        0,
+        width,
+        height
+    );
+
+    /*
+       Background.
+    */
+
+    ctx.fillStyle = "#11151c";
+
+    ctx.fillRect(
+        0,
+        0,
+        width,
+        height
+    );
+
+    ctx.save();
+
+    /*
+       Camera transform.
+    */
+
+    ctx.translate(
+        width / 2 - camera.x,
+        height / 2 - camera.y
+    );
+
+    /*
+       Ground.
+    */
+
+    ctx.fillStyle = "#242a34";
+
+    ctx.fillRect(
+        0,
+        0,
+        world.width,
+        world.height
+    );
+
+    /*
+       Grid.
+    */
+
+    drawGrid();
+
+    /*
+       World border.
+    */
+
+    ctx.strokeStyle = "#596274";
+    ctx.lineWidth = 5;
+
+    ctx.strokeRect(
+        0,
+        0,
+        world.width,
+        world.height
+    );
+
+    /*
+       Draw remote players first.
+    */
+
+    for (const p of remotePlayers.values()) {
+        drawPlayer(p, false);
+    }
+
+    /*
+       Draw local player last.
+    */
+
+    drawPlayer(player, true);
+
+    ctx.restore();
+
+    /*
+       Vignette.
+    */
+
+    const gradient =
+        ctx.createRadialGradient(
+            width / 2,
+            height / 2,
+            Math.min(width, height) * 0.25,
+            width / 2,
+            height / 2,
+            Math.max(width, height) * 0.75
+        );
+
+    gradient.addColorStop(
+        0,
+        "rgba(0,0,0,0)"
+    );
+
+    gradient.addColorStop(
+        1,
+        "rgba(0,0,0,0.35)"
+    );
+
+    ctx.fillStyle = gradient;
+
+    ctx.fillRect(
+        0,
+        0,
+        width,
+        height
+    );
+}
+
+/* =========================================================
+   GRID
+========================================================= */
+
+function drawGrid() {
+
+    const startX =
+        Math.floor(
+            (camera.x - width / 2) /
+            world.gridSize
+        ) *
+        world.gridSize;
+
+    const endX =
+        Math.ceil(
+            (camera.x + width / 2) /
+            world.gridSize
+        ) *
+        world.gridSize;
+
+    const startY =
+        Math.floor(
+            (camera.y - height / 2) /
+            world.gridSize
+        ) *
+        world.gridSize;
+
+    const endY =
+        Math.ceil(
+            (camera.y + height / 2) /
+            world.gridSize
+        ) *
+        world.gridSize;
+
+    ctx.lineWidth = 1;
+
+    ctx.strokeStyle =
+        "rgba(255,255,255,0.055)";
+
+    ctx.beginPath();
+
+    for (
+        let x = startX;
+        x <= endX;
+        x += world.gridSize
+    ) {
+
+        ctx.moveTo(x, startY);
+        ctx.lineTo(x, endY);
+    }
+
+    for (
+        let y = startY;
+        y <= endY;
+        y += world.gridSize
+    ) {
+
+        ctx.moveTo(startX, y);
+        ctx.lineTo(endX, y);
+    }
+
+    ctx.stroke();
+
+    /*
+       Larger grid lines.
+    */
+
+    ctx.strokeStyle =
+        "rgba(255,255,255,0.09)";
+
+    ctx.beginPath();
+
+    const largeGrid = 500;
+
+    const largeStartX =
+        Math.floor(
+            (camera.x - width / 2) /
+            largeGrid
+        ) *
+        largeGrid;
+
+    const largeEndX =
+        Math.ceil(
+            (camera.x + width / 2) /
+            largeGrid
+        ) *
+        largeGrid;
+
+    const largeStartY =
+        Math.floor(
+            (camera.y - height / 2) /
+            largeGrid
+        ) *
+        largeGrid;
+
+    const largeEndY =
+        Math.ceil(
+            (camera.y + height / 2) /
+            largeGrid
+        ) *
+        largeGrid;
+
+    for (
+        let x = largeStartX;
+        x <= largeEndX;
+        x += largeGrid
+    ) {
+
+        ctx.moveTo(x, largeStartY);
+        ctx.lineTo(x, largeEndY);
+    }
+
+    for (
+        let y = largeStartY;
+        y <= largeEndY;
+        y += largeGrid
+    ) {
+
+        ctx.moveTo(largeStartX, y);
+        ctx.lineTo(largeEndX, y);
+    }
+
+    ctx.stroke();
+}
+
+/* =========================================================
+   DRAW PLAYER
+========================================================= */
+
+function drawPlayer(p, isLocal) {
+
+    const x = p.x;
+    const y = p.y;
+    const r = p.radius;
+
+    /*
+       Shadow.
+    */
+
+    ctx.save();
+
+    ctx.fillStyle =
+        "rgba(0,0,0,0.35)";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        x,
+        y + r * 0.62,
+        r * 0.82,
+        r * 0.30,
+        0,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.fill();
+
+    /*
+       Outer glow.
+    */
+
+    if (isLocal) {
+
+        const glow =
+            ctx.createRadialGradient(
+                x,
+                y,
+                r * 0.5,
+                x,
+                y,
+                r * 1.8
+            );
+
+        glow.addColorStop(
+            0,
+            hexToRgba(p.color, 0.35)
+        );
+
+        glow.addColorStop(
+            1,
+            "rgba(0,0,0,0)"
+        );
+
+        ctx.fillStyle = glow;
+
+        ctx.beginPath();
+
+        ctx.arc(
+            x,
+            y,
+            r * 1.8,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.fill();
+    }
+
+    /*
+       Main circle.
+    */
+
+    const gradient =
+        ctx.createRadialGradient(
+            x - r * 0.35,
+            y - r * 0.4,
+            r * 0.1,
+            x,
+            y,
+            r
+        );
+
+    gradient.addColorStop(
+        0,
+        lightenColor(p.color, 45)
+    );
+
+    gradient.addColorStop(
+        0.5,
+        p.color
+    );
+
+    gradient.addColorStop(
+        1,
+        darkenColor(p.color, 35)
+    );
+
+    ctx.fillStyle = gradient;
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x,
+        y,
+        r,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.fill();
+
+    /*
+       Outline.
+    */
+
+    ctx.strokeStyle =
+        isLocal
+            ? "rgba(255,255,255,0.9)"
+            : "rgba(255,255,255,0.35)";
+
+    ctx.lineWidth =
+        isLocal ? 3 : 2;
+
+    ctx.stroke();
+
+    /*
+       Small highlight.
+    */
+
+    ctx.fillStyle =
+        "rgba(255,255,255,0.35)";
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x - r * 0.32,
+        y - r * 0.35,
+        r * 0.20,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.fill();
+
+    /*
+       Player name.
+    */
+
+    ctx.font =
+        "bold 13px Arial";
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+
+    const name =
+        p.name || "Player";
+
+    const textY =
+        y - r - 11;
+
+    /*
+       Text background.
+    */
+
+    const textWidth =
+        ctx.measureText(name).width + 14;
+
+    ctx.fillStyle =
+        "rgba(10,13,18,0.75)";
+
+    roundedRect(
+        x - textWidth / 2,
+        textY - 18,
+        textWidth,
+        20,
+        6
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle = "white";
+
+    ctx.fillText(
+        name,
+        x,
+        textY - 2
+    );
+
+    ctx.restore();
+}
+
+/* =========================================================
+   ROUNDED RECTANGLE
+========================================================= */
+
+function roundedRect(
+    x,
+    y,
+    w,
+    h,
+    r
+) {
+
+    ctx.beginPath();
+
+    ctx.moveTo(
+        x + r,
+        y
+    );
+
+    ctx.lineTo(
+        x + w - r,
+        y
+    );
+
+    ctx.quadraticCurveTo(
+        x + w,
+        y,
+        x + w,
+        y + r
+    );
+
+    ctx.lineTo(
+        x + w,
+        y + h - r
+    );
+
+    ctx.quadraticCurveTo(
+        x + w,
+        y + h,
+        x + w - r,
+        y + h
+    );
+
+    ctx.lineTo(
+        x + r,
+        y + h
+    );
+
+    ctx.quadraticCurveTo(
+        x,
+        y + h,
+        x,
+        y + h - r
+    );
+
+    ctx.lineTo(
+        x,
+        y + r
+    );
+
+    ctx.quadraticCurveTo(
+        x,
+        y,
+        x + r,
+        y
+    );
+
+    ctx.closePath();
+}
+
+/* =========================================================
+   COLORS
+========================================================= */
+
+function randomColor() {
+
+    const colors = [
+        "#5b7cff",
+        "#ff5b7f",
+        "#45d483",
+        "#ffb84d",
+        "#a66cff",
+        "#34c9d9",
+        "#ff6b3d",
+        "#e75cff"
+    ];
+
+    return colors[
+        Math.floor(
+            Math.random() *
+            colors.length
+        )
+    ];
+}
+
+function hexToRgba(hex, alpha) {
+
+    hex = hex.replace("#", "");
+
+    const r =
+        parseInt(hex.substring(0, 2), 16);
+
+    const g =
+        parseInt(hex.substring(2, 4), 16);
+
+    const b =
+        parseInt(hex.substring(4, 6), 16);
+
+    return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function lightenColor(hex, amount) {
+
+    hex = hex.replace("#", "");
+
+    let r =
+        parseInt(hex.substring(0, 2), 16);
+
+    let g =
+        parseInt(hex.substring(2, 4), 16);
+
+    let b =
+        parseInt(hex.substring(4, 6), 16);
+
+    r = Math.min(255, r + amount);
+    g = Math.min(255, g + amount);
+    b = Math.min(255, b + amount);
+
+    return `rgb(${r},${g},${b})`;
+}
+
+function darkenColor(hex, amount) {
+
+    hex = hex.replace("#", "");
+
+    let r =
+        parseInt(hex.substring(0, 2), 16);
+
+    let g =
+        parseInt(hex.substring(2, 4), 16);
+
+    let b =
+        parseInt(hex.substring(4, 6), 16);
+
+    r = Math.max(0, r - amount);
+    g = Math.max(0, g - amount);
+    b = Math.max(0, b - amount);
+
+    return `rgb(${r},${g},${b})`;
+}
+
+/* =========================================================
+   PLAYER COUNT
+========================================================= */
+
+function updatePlayerCount() {
+
+    playersDisplay.textContent =
+        "Players: " +
+        (1 + remotePlayers.size);
+}
+
+/* =========================================================
+   COPY ROOM CODE
+========================================================= */
+
+copyBtn.addEventListener("click", async () => {
+
+    if (
+        !currentRoom ||
+        roomCodeDisplay.textContent === "----"
+    ) {
+
+        showMessage("Create or join a room first.");
+        return;
+    }
+
+    try {
+
+        await navigator.clipboard.writeText(
+            currentRoom
+        );
+
+        showMessage("Room code copied!");
+
+    } catch {
+
+        showMessage(
+            "Room code: " + currentRoom
+        );
+    }
+});
+
+/* =========================================================
+   MESSAGE
+========================================================= */
+
+let messageTimeout;
+
+function showMessage(text) {
+
+    message.textContent = text;
+    message.style.opacity = "1";
+
+    clearTimeout(messageTimeout);
+
+    messageTimeout =
+        setTimeout(() => {
+            message.style.opacity = "0";
+        }, 2500);
+}
+
+/* =========================================================
+   MAIN GAME LOOP
+========================================================= */
+
+let lastTime = performance.now();
+
+function gameLoop(now) {
+
+    let dt =
+        (now - lastTime) / 1000;
+
+    lastTime = now;
+
+    /*
+       Prevent huge physics jumps if the tab
+       was inactive.
+    */
+
+    dt =
+        Math.min(dt, 0.033);
+
+    updatePlayer(dt);
+
+    updateRemotePlayers(dt);
+
+    updateCamera(dt);
+
+    sendPositionUpdates(dt);
+
+    drawWorld();
+
+    requestAnimationFrame(gameLoop);
+}
+
+requestAnimationFrame(gameLoop);
+
+/* =========================================================
+   STARTUP
+========================================================= */
+
+player.name = "Player";
+
+updatePlayerCount();
+
+statusDisplay.textContent =
+    "Create a room or join one with a code.";
+
+/*
+   Keep the player roughly centered at startup.
+*/
+
+player.x =
+    world.width / 2;
+
+player.y =
+    world.height / 2;
+
+camera.x =
+    player.x;
+
+camera.y =
+    player.y;
+
+/* =========================================================
+   EXTRA: TAB TITLE UPDATES
+========================================================= */
+
+setInterval(() => {
+
+    const count =
+        1 + remotePlayers.size;
+
+    document.title =
+        `Circle World (${count} player${count === 1 ? "" : "s"})`;
+
+}, 1000);
+
+/* =========================================================
+   EXTRA: RECONNECT HANDLING
+========================================================= */
+
+window.addEventListener("beforeunload", () => {
+
+    if (!peer) {
+        return;
+    }
+
+    try {
+
+        if (isHost) {
+
+            broadcast({
+                type: "playerLeft",
+                id: player.id
+            });
+
+        } else {
+
+            for (const connection of connections.values()) {
+
+                sendToConnection(connection, {
+                    type: "playerLeft",
+                    id: player.id
+                });
+            }
+        }
+
+    } catch {}
+});
+
+/* =========================================================
+   OPTIONAL: CLICK CAN FOCUS THE GAME
+========================================================= */
+
+canvas.addEventListener("click", () => {
+    canvas.focus();
+});
+
+/* =========================================================
+   END
+========================================================= */
+</script>
+
+</body>
+</html>
