@@ -107,6 +107,11 @@
         .btn-danger {
             @apply bg-red-700 text-white hover:bg-red-600 shadow-red-800/50;
         }
+        /* Upgraded shop cards */
+        #shop-modal > div { background: linear-gradient(145deg,#111827,#0b1220); border: 1px solid rgba(249,115,22,.65); box-shadow: 0 25px 80px rgba(0,0,0,.65), 0 0 35px rgba(249,115,22,.12); }
+        #shop-content > div { transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; border-radius: 14px !important; background: linear-gradient(135deg,rgba(31,41,55,.98),rgba(17,24,39,.98)) !important; border: 1px solid rgba(75,85,99,.8) !important; box-shadow: 0 8px 25px rgba(0,0,0,.2); }
+        #shop-content > div:hover { transform: translateY(-2px); border-color: rgba(249,115,22,.7) !important; box-shadow: 0 12px 32px rgba(249,115,22,.12); }
+        #shop-content .btn { border-radius: 10px; min-width: 130px; }
         .screen { display:none; }
         .screen.flex { display:flex; }
 
@@ -329,7 +334,7 @@
                 <h2 class="text-6xl font-bold text-red-600 mb-4">GAME OVER</h2>
                 <p id="game-over-wave" class="text-2xl text-white mb-2">You survived 0 waves!</p>
                 <p id="game-over-money" class="text-lg text-gray-300 mb-8">Money earned: 0</p>
-                <button id="restart-button" class="btn btn-primary">Play Again</button>
+                <button id="restart-button" class="btn btn-primary">BACK TO LOBBY</button>
             </div>
         </div>
 
@@ -826,8 +831,8 @@
 
                 restartButton.onclick = () => {
                     gameOverModal.classList.add('hidden');
-                    this.resetGame();
-                    this.start();
+                    gameOverModal.classList.remove('flex');
+                    leaveRoom();
                 };
 
                 // Finish loading
@@ -1135,21 +1140,22 @@
             handleRangedZombieAI: function(z, now) {
                 const range = z.shootRange || z.throwRange;
                 const tooCloseRange = range * 0.6; // Flee if player is within 60% of max range
-                const playerDist = this.dist(z.x, z.y, this.player.x, this.player.y);
+                const closestPlayer = this.getClosestPlayerTarget(z);
+                const playerDist = this.dist(z.x, z.y, closestPlayer.x, closestPlayer.y);
                 let isMoving = false;
 
                 // --- Movement AI ---
                 if (playerDist < tooCloseRange) { // Flee from player
-                    const dx = z.x - this.player.x;
-                    const dy = z.y - this.player.y;
+                    const dx = z.x - closestPlayer.x;
+                    const dy = z.y - closestPlayer.y;
                     if (playerDist > 0) {
                         z.x += (dx / playerDist) * z.speed * 0.9;
                         z.y += (dy / playerDist) * z.speed * 0.9;
                         isMoving = true;
                     }
                 } else if (playerDist > range * 0.9) { // Chase player if they are beyond 90% of range
-                    const dx = this.player.x - z.x;
-                    const dy = this.player.y - z.y;
+                    const dx = closestPlayer.x - z.x;
+                    const dy = closestPlayer.y - z.y;
                     if (playerDist > 0) {
                         z.x += (dx / playerDist) * z.speed;
                         z.y += (dy / playerDist) * z.speed;
@@ -1162,7 +1168,7 @@
                 // Ranged Attack (only if not moving, for better aim)
                 if (!isMoving && playerDist < range && now - (z.lastShot || 0) > (z.shootRate || z.throwRate)) {
                     z.lastShot = now;
-                    this.shootAcid(z.x, z.y, this.player.x, this.player.y, z.type === 'thrower' || z.type === 'boss');
+                    this.shootAcid(z.x, z.y, closestPlayer.x, closestPlayer.y, z.type === 'thrower' || z.type === 'boss', closestPlayer.id);
                 }
 
                 // Boss Slam (independent of ranged attack)
@@ -1171,6 +1177,23 @@
                     this.createExplosion(z.x, z.y, 100);
                     this.addCameraShake(15);
                 }
+            },
+
+            // Shared multiplayer target selection: every zombie uses the same closest-player target on the host.
+            getClosestPlayerTarget: function(z) {
+                let best = { entity: this.player, id: network.myId, x: this.player.x, y: this.player.y, health: this.player.health, maxHealth: this.player.maxHealth, isLocal: true };
+                let bestDist = this.dist(z.x, z.y, this.player.x, this.player.y);
+                if (network.isHost) {
+                    for (const p of network.remotePlayers.values()) {
+                        if (!p || p.health <= 0) continue;
+                        const d = this.dist(z.x, z.y, p.x, p.y);
+                        if (d < bestDist) {
+                            bestDist = d;
+                            best = { entity:p, id:p.id, x:p.x, y:p.y, health:p.health, maxHealth:p.maxHealth, isLocal:false };
+                        }
+                    }
+                }
+                return best;
             },
 
             updateZombies: function(now) {
@@ -3355,7 +3378,7 @@
                 });
             },
 
-            shootAcid: function(x, y, targetX, targetY, isArcing) {
+            shootAcid: function(x, y, targetX, targetY, isArcing, targetId = null) {
                 const angle = Math.atan2(targetY - y, targetX - x);
                 const speed = isArcing ? 4 : 6;
 
@@ -3538,14 +3561,14 @@
             if(d.type==='playerAssigned'){game.player.x=Number(d.x)||1000;game.player.y=Number(d.y)||850;return;}
             if(d.type==='playerJoined'){if(d.player&&d.player.id!==network.myId)network.remotePlayers.set(d.player.id,makeRemote(d.player));updatePlayerCount();renderPlayerList();return;}
             if(d.type==='playerLeft'){network.remotePlayers.delete(d.id);updatePlayerCount();renderPlayerList();return;}
-            if(d.type==='update'){const p=network.remotePlayers.get(d.id);if(p){p.targetX=Number(d.x)||0;p.targetY=Number(d.y)||0;p.targetAngle=Number(d.angle)||0;p.name=d.name||p.name;}if(network.isHost)broadcast(d,d.id);return;}
+            if(d.type==='update'){const p=network.remotePlayers.get(d.id);if(p){p.targetX=Number(d.x)||0;p.targetY=Number(d.y)||0;p.targetAngle=Number(d.angle)||0;p.name=d.name||p.name;if(Number.isFinite(Number(d.health)))p.health=Number(d.health);if(Number.isFinite(Number(d.maxHealth)))p.maxHealth=Number(d.maxHealth);}if(network.isHost)broadcast(d,d.id);return;}
             if(d.type==='gameStart'){network.gameStarted=true;waitingScreen.classList.add('hidden');waitingScreen.classList.remove('flex');gameContainer.classList.remove('hidden');if(!game.gameStarted)game.start();return;}
         }
-        function makeRemote(p){return{id:p.id,name:String(p.name||'Player').slice(0,16),x:Number(p.x)||0,y:Number(p.y)||0,targetX:Number(p.x)||0,targetY:Number(p.y)||0,angle:Number(p.angle)||0,targetAngle:Number(p.angle)||0,color:p.color||randomPlayerColor()};}
+        function makeRemote(p){return{id:p.id,name:String(p.name||'Player').slice(0,16),x:Number(p.x)||0,y:Number(p.y)||0,targetX:Number(p.x)||0,targetY:Number(p.y)||0,angle:Number(p.angle)||0,targetAngle:Number(p.angle)||0,health:Number.isFinite(Number(p.health))?Number(p.health):100,maxHealth:Number.isFinite(Number(p.maxHealth))?Number(p.maxHealth):100,color:p.color||randomPlayerColor()};}
         function randomPlayerColor(){return '#'+Math.floor(Math.random()*16777215).toString(16).padStart(6,'0');}
         function getSpawnForPlayer(n){const a=[{x:1000,y:850},{x:1080,y:850},{x:920,y:850},{x:1000,y:930},{x:1000,y:770},{x:1080,y:930},{x:920,y:930}];return a[(n-1)%a.length];}
         function broadcast(d,exclude=null){for(const[id,c]of network.peerConnections){if(id==='host'||id===exclude)continue;if(c&&c.open)try{c.send(d)}catch{}}}
-        function broadcastMyPlayer(){if(!network.connected||!network.gameStarted)return;const now=performance.now();if(now-network.lastBroadcast<45)return;network.lastBroadcast=now;const d={type:'update',id:network.myId,x:game.player.x,y:game.player.y,angle:game.player.angle,name:network.playerName};if(network.isHost)broadcast(d);else{const c=network.peerConnections.get('host');if(c?.open)try{c.send(d)}catch{}}}
+        function broadcastMyPlayer(){if(!network.connected||!network.gameStarted)return;const now=performance.now();if(now-network.lastBroadcast<45)return;network.lastBroadcast=now;const d={type:'update',id:network.myId,x:game.player.x,y:game.player.y,angle:game.player.angle,name:network.playerName,health:game.player.health,maxHealth:game.player.maxHealth};if(network.isHost)broadcast(d);else{const c=network.peerConnections.get('host');if(c?.open)try{c.send(d)}catch{}}}
         function updateRemotePlayers(){const dt=Math.min(.05,(performance.now()-(game.lastFrameTime||performance.now()))/1000),a=1-Math.exp(-18*dt);for(const p of network.remotePlayers.values()){p.x+=(p.targetX-p.x)*a;p.y+=(p.targetY-p.y)*a;const da=Math.atan2(Math.sin((p.targetAngle||0)-p.angle),Math.cos((p.targetAngle||0)-p.angle));p.angle+=da*a;}}
         function drawRemotePlayers(){for(const p of network.remotePlayers.values()){ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.angle||0);ctx.fillStyle='rgba(0,0,0,.25)';ctx.beginPath();ctx.ellipse(0,13,13,6,0,0,Math.PI*2);ctx.fill();ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(0,0,10,0,Math.PI*2);ctx.fill();ctx.fillRect(-10,-12,20,24);ctx.fillStyle='#555';ctx.fillRect(10,-3,15,6);ctx.rotate(-(p.angle||0));ctx.fillStyle='white';ctx.font='12px "Chakra Petch"';ctx.textAlign='center';ctx.fillText(p.name,0,-21);ctx.restore();}}
         function updatePlayerCount(){playerCountEl.textContent=(1+network.remotePlayers.size)+' / 8';}
@@ -3609,8 +3632,8 @@
                 empPulses:cleanNetObject(game.empPulses),
                 healParticles:cleanNetObject(game.healParticles),
                 players:[
-                    {id:network.myId,name:network.playerName||'Player',x:game.player.x,y:game.player.y,angle:game.player.angle,color:'#3182CE'} ,
-                    ...Array.from(network.remotePlayers.values()).map(p=>({id:p.id,name:p.name,x:p.x,y:p.y,angle:p.angle,color:p.color}))
+                    {id:network.myId,name:network.playerName||'Player',x:game.player.x,y:game.player.y,angle:game.player.angle,health:game.player.health,maxHealth:game.player.maxHealth,color:'#3182CE'} ,
+                    ...Array.from(network.remotePlayers.values()).map(p=>({id:p.id,name:p.name,x:p.x,y:p.y,angle:p.angle,health:p.health,maxHealth:p.maxHealth,color:p.color}))
                 ]
             };
         }
