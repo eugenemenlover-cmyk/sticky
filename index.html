@@ -3554,6 +3554,269 @@
         function startMultiplayerGame(){if(!network.connected||!network.isHost)return;network.gameStarted=true;waitingScreen.classList.add('hidden');waitingScreen.classList.remove('flex');gameContainer.classList.remove('hidden');if(!game.gameStarted)game.start();broadcast({type:'gameStart'});}
         function leaveRoom(){try{for(const c of network.peerConnections.values())c.close();if(network.peer)network.peer.destroy();}catch{}network.peerConnections.clear();network.remotePlayers.clear();network.connected=false;network.gameStarted=false;network.isHost=false;game.gameStarted=false;gameContainer.classList.add('hidden');showMenuScreen(matchScreen);setMatchStatus('');}
 
+        // --- AUTHORITATIVE MULTIPLAYER WORLD SYNC ---
+        // The host owns the shared simulation. Clients keep their own player input,
+        // while zombies, bullets, sentries, walls, traps, drops and effects come from the host.
+        const originalGameStart = game.start.bind(game);
+        const originalGameUpdate = game.update.bind(game);
+        const originalGameShoot = game.shoot.bind(game);
+        const originalPlaceSentry = game.placeSentry.bind(game);
+        const originalPlaceWall = game.placeWall.bind(game);
+        const originalPlaceTrap = game.placeTrap.bind(game);
+
+        network.sharedSnapshot = null;
+        network.lastWorldBroadcast = 0;
+        network.playerStates = new Map();
+
+        function cleanNetObject(obj){
+            if(obj === undefined || obj === null) return obj;
+            if(Array.isArray(obj)) return obj.map(cleanNetObject);
+            if(typeof obj === 'object'){
+                const out={};
+                for(const [k,v] of Object.entries(obj)){
+                    if(typeof v === 'function') continue;
+                    if(k === 'hitZombies'){
+                        out[k]=[];
+                        continue;
+                    }
+                    out[k]=cleanNetObject(v);
+                }
+                return out;
+            }
+            if(typeof obj === 'number' && !Number.isFinite(obj)) return 0;
+            return obj;
+        }
+
+        function makeWorldSnapshot(){
+            return {
+                wave:game.wave,
+                zombiesKilled:game.zombiesKilled,
+                totalZombiesInWave:game.totalZombiesInWave,
+                waveActive:game.waveActive,
+                bossesToSpawn:game.bossesToSpawn,
+                escortsToSpawn:game.escortsToSpawn,
+                lootCrate:cleanNetObject(game.lootCrate),
+                traderActive:game.traderActive,
+                zombies:cleanNetObject(game.zombies),
+                bullets:cleanNetObject(game.bullets),
+                sentries:cleanNetObject(game.sentries),
+                walls:cleanNetObject(game.walls),
+                traps:cleanNetObject(game.traps),
+                drops:cleanNetObject(game.drops),
+                acidPools:cleanNetObject(game.acidPools),
+                explosions:cleanNetObject(game.explosions),
+                particles:cleanNetObject(game.particles),
+                empPulses:cleanNetObject(game.empPulses),
+                healParticles:cleanNetObject(game.healParticles),
+                players:[
+                    {id:network.myId,name:network.playerName||'Player',x:game.player.x,y:game.player.y,angle:game.player.angle,color:'#3182CE'} ,
+                    ...Array.from(network.remotePlayers.values()).map(p=>({id:p.id,name:p.name,x:p.x,y:p.y,angle:p.angle,color:p.color}))
+                ]
+            };
+        }
+
+        function broadcastWorldSnapshot(force=false){
+            if(!network.isHost || !network.gameStarted) return;
+            const now=performance.now();
+            if(!force && now-network.lastWorldBroadcast<50) return;
+            network.lastWorldBroadcast=now;
+            const snap=makeWorldSnapshot();
+            broadcast({type:'worldSnapshot',snapshot:snap});
+        }
+
+        function applyWorldSnapshot(s){
+            if(!s) return;
+            game.wave=Number(s.wave)||0;
+            game.zombiesKilled=Number(s.zombiesKilled)||0;
+            game.totalZombiesInWave=Number(s.totalZombiesInWave)||0;
+            game.waveActive=!!s.waveActive;
+            game.bossesToSpawn=Number(s.bossesToSpawn)||0;
+            game.escortsToSpawn=Number(s.escortsToSpawn)||0;
+            game.lootCrate=cleanNetObject(s.lootCrate);
+            game.traderActive=!!s.traderActive;
+            game.zombies=cleanNetObject(s.zombies||[]);
+            game.bullets=cleanNetObject(s.bullets||[]);
+            game.sentries=cleanNetObject(s.sentries||[]);
+            game.walls=cleanNetObject(s.walls||[]);
+            game.traps=cleanNetObject(s.traps||[]);
+            game.drops=cleanNetObject(s.drops||[]);
+            game.acidPools=cleanNetObject(s.acidPools||[]);
+            game.explosions=cleanNetObject(s.explosions||[]);
+            game.particles=cleanNetObject(s.particles||[]);
+            game.empPulses=cleanNetObject(s.empPulses||[]);
+            game.healParticles=cleanNetObject(s.healParticles||[]);
+            if(Array.isArray(s.players)){
+                for(const p of s.players){
+                    if(!p || p.id===network.myId) continue;
+                    let r=network.remotePlayers.get(p.id);
+                    if(!r) r=makeRemote(p),network.remotePlayers.set(p.id,r);
+                    r.name=p.name||r.name;
+                    r.color=p.color||r.color;
+                    r.targetX=Number(p.x)||0;
+                    r.targetY=Number(p.y)||0;
+                    r.targetAngle=Number(p.angle)||0;
+                    // Snap very large corrections, otherwise keep interpolation smooth.
+                    if(Math.abs(r.x-r.targetX)>250 || Math.abs(r.y-r.targetY)>250){r.x=r.targetX;r.y=r.targetY;}
+                }
+            }
+            if(intermissionLootCrate){
+                if(game.lootCrate) intermissionLootCrate.classList.remove('hidden');
+                else intermissionLootCrate.classList.add('hidden');
+            }
+            if(game.traderActive) intermissionTrader.classList.remove('hidden');
+            else intermissionTrader.classList.add('hidden');
+        }
+
+        // Clients never run their own zombie/bullet/sentry simulation.
+        game.start = function(){
+            this.gameStarted=true;
+            this.gameOver=false;
+            if(network.isHost || !network.connected){
+                this.startWave();
+            }
+            this.lastFrameTime=performance.now();
+            this.gameLoop();
+        };
+
+        game.update = function(timestamp){
+            if(network.connected && !network.isHost && network.gameStarted){
+                this.updatePotions(timestamp);
+                this.updatePlayer();
+                updateRemotePlayers();
+                if(network.sharedSnapshot) applyWorldSnapshot(network.sharedSnapshot);
+                this.updateCamera();
+                this.updateHUD();
+                return;
+            }
+            originalGameUpdate(timestamp);
+            broadcastWorldSnapshot();
+        };
+
+        // Player shooting is requested from the client and created by the host,
+        // so every machine sees the exact same projectile path.
+        game.shoot = function(){
+            if(network.connected && network.gameStarted && !network.isHost){
+                const weapon=this.weapons[this.selectedWeapon];
+                if(!weapon || !weapon.owned || weapon.isReloading) return;
+                if(weapon.currentAmmo<=0){ this.reloadWeapon(); return; }
+                const now=performance.now();
+                let fireRate=weapon.fireRate;
+                if(this.activePotions.fireRate>0) fireRate/=2;
+                if(now-this.lastShot<fireRate) return;
+                this.lastShot=now;
+                weapon.currentAmmo--;
+                const d={
+                    type:'playerShoot', id:network.myId,
+                    x:this.player.x,y:this.player.y,angle:this.player.angle,
+                    weaponIndex:this.selectedWeapon,
+                    damage:weapon.damage,speed:weapon.speed,size:weapon.bulletSize,
+                    explosive:!!weapon.explosive,pellets:weapon.pellets||0,
+                    pierce:weapon.pierce||0,blastRadius:weapon.blastRadius||1
+                };
+                const c=network.peerConnections.get('host');
+                if(c?.open) try{c.send(d)}catch{}
+                this.addCameraShake(weapon.pellets?3:2);
+                return;
+            }
+            originalGameShoot();
+        };
+
+        // Buildables are host-owned too. Clients spend their local resources as before,
+        // then send the completed object to the host; the host broadcasts it back.
+        game.placeSentry = function(){
+            if(network.connected && network.gameStarted && !network.isHost){
+                if(!this.placingSentry) return;
+                const item={...this.placingSentry,x:this.mouse.worldX,y:this.mouse.worldY};
+                const c=network.peerConnections.get('host');
+                if(c?.open) try{c.send({type:'placeSentry',item:cleanNetObject(item)})}catch{}
+                this.placingSentry=null; placingItemHint.classList.add('hidden');
+                return;
+            }
+            originalPlaceSentry();
+        };
+        game.placeWall = function(){
+            if(network.connected && network.gameStarted && !network.isHost){
+                if(!this.placingWall) return;
+                const item={...this.placingWall,x:this.mouse.worldX,y:this.mouse.worldY};
+                const c=network.peerConnections.get('host');
+                if(c?.open) try{c.send({type:'placeWall',item:cleanNetObject(item)})}catch{}
+                this.placingWall=null; placingItemHint.classList.add('hidden');
+                return;
+            }
+            originalPlaceWall();
+        };
+        game.placeTrap = function(){
+            if(network.connected && network.gameStarted && !network.isHost){
+                if(!this.placingTrap) return;
+                const item={...this.placingTrap,x:this.mouse.worldX,y:this.mouse.worldY};
+                const c=network.peerConnections.get('host');
+                if(c?.open) try{c.send({type:'placeTrap',item:cleanNetObject(item)})}catch{}
+                this.placingTrap=null; placingItemHint.classList.add('hidden');
+                return;
+            }
+            originalPlaceTrap();
+        };
+
+        // Extend the existing network message handler without removing the old player sync.
+        const originalHandleNetworkData=handleNetworkData;
+        handleNetworkData=function(d,conn){
+            if(d && d.type==='playerShoot' && network.isHost){
+                const p=network.remotePlayers.get(d.id);
+                if(!p) return;
+                const w=game.weapons[Math.max(0,Math.min(game.weapons.length-1,Number(d.weaponIndex)||0))];
+                const damage=Number(d.damage)||w.damage;
+                const speed=Number(d.speed)||w.speed;
+                const size=Number(d.size)||w.bulletSize;
+                const angle=Number(d.angle)||0;
+                const x=Number(d.x)||p.x, y=Number(d.y)||p.y;
+                const count=Math.max(1,Math.min(32,Number(d.pellets)||0));
+                if(count>1){
+                    for(let i=0;i<count;i++){
+                        const spread=(Math.random()-.5)*.4;
+                        game.bullets.push({x:x+Math.cos(angle)*15,y:y+Math.sin(angle)*15,vx:Math.cos(angle+spread)*speed,vy:Math.sin(angle+spread)*speed,damage:damage,explosive:!!d.explosive,size:size,pierce:Number(d.pierce)||0,blastRadius:Number(d.blastRadius)||1,ownerId:d.id});
+                    }
+                }else{
+                    game.bullets.push({x:x+Math.cos(angle)*15,y:y+Math.sin(angle)*15,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,damage:damage,explosive:!!d.explosive,size:size,pierce:Number(d.pierce)||0,blastRadius:Number(d.blastRadius)||1,ownerId:d.id});
+                }
+                return;
+            }
+            if(d && d.type==='placeSentry' && network.isHost){
+                if(d.item) game.sentries.push(cleanNetObject(d.item));
+                return;
+            }
+            if(d && d.type==='placeWall' && network.isHost){
+                if(d.item) game.walls.push(cleanNetObject(d.item));
+                return;
+            }
+            if(d && d.type==='placeTrap' && network.isHost){
+                if(d.item) game.traps.push(cleanNetObject(d.item));
+                return;
+            }
+            if(d && d.type==='worldSnapshot' && !network.isHost){
+                network.sharedSnapshot=d.snapshot;
+                applyWorldSnapshot(network.sharedSnapshot);
+                return;
+            }
+            originalHandleNetworkData(d,conn);
+        };
+
+        // Replace the old player broadcast with a host snapshot heartbeat while keeping
+        // the original smooth player movement messages for responsiveness.
+        const oldBroadcastMyPlayer=broadcastMyPlayer;
+        broadcastMyPlayer=function(){
+            oldBroadcastMyPlayer();
+            if(network.isHost) broadcastWorldSnapshot();
+        };
+
+        // Make the host start from a clean, shared world and immediately send it.
+        const oldStartMultiplayerGame=startMultiplayerGame;
+        startMultiplayerGame=function(){
+            oldStartMultiplayerGame();
+            if(network.isHost){
+                setTimeout(()=>broadcastWorldSnapshot(true),100);
+            }
+        };
+
         // --- Start the game ---
         window.onload = () => {
             game.init();
