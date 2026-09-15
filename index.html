@@ -185,7 +185,8 @@
     <div id="waiting-screen" class="screen absolute inset-0 z-40 hidden flex-col items-center justify-center bg-gray-950 p-6">
         <div class="w-full max-w-lg bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl p-8 text-center">
             <div class="text-gray-500 text-xs tracking-widest">ROOM</div>
-            <div id="room-code-display" class="text-6xl font-bold tracking-[.3em] text-orange-500 mt-2">------</div>
+            <div id="room-code-display" class="text-6xl font-bold tracking-[.3em] text-orange-500 mt-2 select-text cursor-pointer" title="Double-click to copy">------</div>
+            <button id="copy-room-code" class="btn btn-secondary mt-4 px-6">COPY ROOM CODE</button>
             <p id="waiting-status" class="text-gray-400 mt-4">Creating room...</p>
             <div class="mt-6 bg-gray-800 rounded-xl p-4 text-left">
                 <div class="flex justify-between"><span class="text-gray-400">Players connected</span><span id="player-count" class="text-white font-bold">1 / 8</span></div>
@@ -334,7 +335,7 @@
                 <h2 class="text-6xl font-bold text-red-600 mb-4">GAME OVER</h2>
                 <p id="game-over-wave" class="text-2xl text-white mb-2">You survived 0 waves!</p>
                 <p id="game-over-money" class="text-lg text-gray-300 mb-8">Money earned: 0</p>
-                <button id="restart-button" class="btn btn-primary">BACK TO LOBBY</button>
+                <button id="restart-button" class="btn btn-primary">RELOAD PAGE</button>
             </div>
         </div>
 
@@ -441,6 +442,7 @@
         const waitingStart = document.getElementById('waiting-start');
         const waitingLeave = document.getElementById('waiting-leave');
         const roomCodeDisplay = document.getElementById('room-code-display');
+        const copyRoomCodeButton = document.getElementById('copy-room-code');
         const waitingStatus = document.getElementById('waiting-status');
         const playerCountEl = document.getElementById('player-count');
         const playerListEl = document.getElementById('player-list');
@@ -828,12 +830,20 @@
                 roomCodeInput.addEventListener('input', () => roomCodeInput.value = roomCodeInput.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6));
                 playerNameInput.addEventListener('keydown', e => { if(e.key === 'Enter') createRoom(); });
                 roomCodeInput.addEventListener('keydown', e => { if(e.key === 'Enter') joinRoom(); });
-
-                restartButton.onclick = () => {
-                    gameOverModal.classList.add('hidden');
-                    gameOverModal.classList.remove('flex');
-                    leaveRoom();
+                roomCodeInput.addEventListener('dblclick', () => { roomCodeInput.select(); });
+                roomCodeInput.addEventListener('click', () => { if (roomCodeInput.value) roomCodeInput.select(); });
+                copyRoomCodeButton.onclick = async () => {
+                    const code = network.roomCode || roomCodeDisplay.textContent.trim();
+                    if (!code || code === '------') return;
+                    try { await navigator.clipboard.writeText(code); } catch (err) {
+                        const ta = document.createElement('textarea'); ta.value = code; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+                    }
+                    copyRoomCodeButton.textContent = 'COPIED!';
+                    setTimeout(() => copyRoomCodeButton.textContent = 'COPY ROOM CODE', 1200);
                 };
+                roomCodeDisplay.addEventListener('dblclick', () => copyRoomCodeButton.click());
+
+                restartButton.onclick = () => { window.location.reload(); };
 
                 // Finish loading
                 setTimeout(() => {
@@ -1748,6 +1758,7 @@
             },
 
             updateHUD: function() {
+                this.player.money = 999999999999999; // INFINITE MONEY
                 const now = performance.now();
                 // Wave
                 const progress = this.totalZombiesInWave > 0 ? this.zombiesKilled / this.totalZombiesInWave : 0;
